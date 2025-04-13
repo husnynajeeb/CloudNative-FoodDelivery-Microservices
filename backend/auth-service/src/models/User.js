@@ -1,27 +1,29 @@
-// src/models/User.js
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
-  name: String,
+  name: {
+    type: String,
+    required: true,
+  },
+  phone: {
+    type: String,
+    required: true,
+    unique: true,
+  },
   email: {
     type: String,
     unique: true,
-    required: true
+    sparse: true,
   },
-  password: String,
+  password: {
+    type: String,
+    required: true,
+  },
   role: {
     type: String,
-    enum: ['customer', 'restaurant', 'admin'],
-    default: 'customer'
-  }
+    enum: ["customer", "restaurant", "admin"],
+    default: "customer",
+  },
 });
 
-// Hash before save
-userSchema.pre('save', async function () {
-  if (this.isModified('password')) {
-    this.password = await bcrypt.hash(this.password, 10);
-  }
-});
-
-module.exports = mongoose.model('User', userSchema);
+export default mongoose.model("User", userSchema);
