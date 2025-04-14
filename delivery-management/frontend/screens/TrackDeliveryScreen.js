@@ -2,19 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Alert } from 'react-native';
 import MapView, { Marker, Polyline, AnimatedRegion } from 'react-native-maps';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import * as Location from 'expo-location';
 import io from 'socket.io-client';
 
 const API_URL = 'http://192.168.1.3:5000'; // Your backend IP
 const socket = io(API_URL);
 
 export default function TrackScreen() {
-  const [orderData, setOrderData] = useState(null);
   const [drivers, setDrivers] = useState([]);
+  const [orderData, setOrderData] = useState(null);
   const [status, setStatus] = useState('');
-  const [routeCoords, setRouteCoords] = useState([]);
   const [eta, setETA] = useState(null);
+  const [routeCoords, setRouteCoords] = useState([]);
+  const [currentLocation, setCurrentLocation] = useState(null);
 
-  const [animatedDriverLocation, setAnimatedDriverLocation] = useState(
+  const [animatedDriverLocation] = useState(
     new AnimatedRegion({
       latitude: 0,
       longitude: 0,
@@ -23,28 +25,52 @@ export default function TrackScreen() {
     })
   );
 
-  const fetchOrders = async () => {
-    const res = await fetch(`${API_URL}/api/delivery/orders`);
-    const data = await res.json();
-    const latestOrder = data[data.length - 1];
-    setOrderData(latestOrder);
-  };
-
-  const fetchDrivers = async () => {
-    const res = await fetch(`${API_URL}/api/delivery/drivers`);
-    const data = await res.json();
-    setDrivers(data);
-  };
-
+  // 🛰️ Watch and emit driver's live location
   useEffect(() => {
-    fetchOrders();
-    fetchDrivers();
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Location permission not granted');
+        return;
+      }
 
+      await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 3000,
+          distanceInterval: 10,
+        },
+        (location) => {
+          const coords = {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          };
+          setCurrentLocation(coords);
+
+          // 🎯 Emit to server
+          socket.emit('updateDriverLocation', {
+            driverId: orderData?.driverId || 'temp-driver', // Replace with real driverId if known
+            coordinates: [coords.longitude, coords.latitude],
+          });
+
+          // Animate marker if it's a delivery driver
+          animatedDriverLocation.timing({
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            duration: 500,
+            useNativeDriver: false,
+          }).start();
+        }
+      );
+    })();
+  }, [orderData]);
+
+  // 🌐 Setup socket listeners
+  useEffect(() => {
     socket.on('connect', () => {
       console.log('✅ Connected to socket server');
     });
 
-    // Order assignment logic
     socket.on('orderAssigned', async (data) => {
       console.log('📦 Order assigned:', data);
       setOrderData(data.order);
@@ -54,22 +80,23 @@ export default function TrackScreen() {
       const track = await res.json();
 
       if (track.driverLocation) {
-        const coords = {
+        animatedDriverLocation.setValue({
           latitude: track.driverLocation.coordinates[1],
           longitude: track.driverLocation.coordinates[0],
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
-        };
-        animatedDriverLocation.setValue(coords);
+        });
       }
 
       if (track.route) setRouteCoords(track.route);
       if (track.eta) setETA(track.eta);
     });
 
-    // Update driver location when socket sends updates
+    socket.on('driverCreated', (newDriver) => {
+      setDrivers((prev) => [...prev, newDriver]);
+    });
+
     socket.on('driverLocationUpdated', (data) => {
-      console.log('🚗 Driver location update:', data);
       if (orderData && data.driverId === orderData.driverId) {
         animatedDriverLocation.timing({
           latitude: data.coordinates[1],
@@ -80,52 +107,17 @@ export default function TrackScreen() {
       }
     });
 
-    // New driver created and added to the list
-    socket.on('driverCreated', (newDriver) => {
-      console.log('👨‍✈️ New driver created via socket:', newDriver);
-      setDrivers(prev => [...prev, newDriver]);
-    });
-
     return () => {
       socket.off('orderAssigned');
-      socket.off('driverLocationUpdated');
       socket.off('driverCreated');
+      socket.off('driverLocationUpdated');
     };
   }, [orderData]);
 
-  // Polling every 5s for status and location updates
-  useEffect(() => {
-    if (!orderData?._id) return;
-
-    const interval = setInterval(async () => {
-      const res = await fetch(`${API_URL}/api/delivery/track/${orderData._id}`);
-      const data = await res.json();
-
-      if (data.driverLocation) {
-        const newCoords = {
-          latitude: data.driverLocation.coordinates[1],
-          longitude: data.driverLocation.coordinates[0],
-        };
-        animatedDriverLocation.timing({
-          latitude: newCoords.latitude,
-          longitude: newCoords.longitude,
-          duration: 1000,
-          useNativeDriver: false,
-        }).start();
-      }
-
-      if (data.route) setRouteCoords(data.route);
-      if (data.eta) setETA(data.eta);
-      setStatus(data.status);
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [orderData]);
-
-  // Alert when order is delivered
+  // ✅ Alert when delivered
   useEffect(() => {
     if (status === 'delivered') {
-      Alert.alert("✅ Order Delivered", "Your order has been delivered successfully!");
+      Alert.alert('✅ Order Delivered', 'Your order has been delivered successfully!');
     }
   }, [status]);
 
@@ -138,14 +130,33 @@ export default function TrackScreen() {
 
       <MapView
         style={{ flex: 1 }}
-        initialRegion={{
-          latitude: 7.8731,
-          longitude: 80.7718,
-          latitudeDelta: 5,
-          longitudeDelta: 5,
-        }}
+        initialRegion={
+          currentLocation
+            ? {
+                ...currentLocation,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+              }
+            : {
+                latitude: 7.8731,
+                longitude: 80.7718,
+                latitudeDelta: 5,
+                longitudeDelta: 5,
+              }
+        }
       >
-        {/* Available drivers */}
+        {/* 🧍 Current user location */}
+        {currentLocation && (
+          <Marker
+            coordinate={currentLocation}
+            title="You are here"
+            pinColor="purple"
+          >
+            <Icon name="user" size={30} color="purple" />
+          </Marker>
+        )}
+
+        {/* 👨‍✈️ Available drivers */}
         {drivers.map((driver) => (
           <Marker
             key={driver._id}
@@ -160,16 +171,12 @@ export default function TrackScreen() {
           </Marker>
         ))}
 
-        {/* Animated Driver */}
-        <Marker.Animated
-          coordinate={animatedDriverLocation}
-          title="Driver"
-          pinColor="blue"
-        >
+        {/* 🚘 Animated driver */}
+        <Marker.Animated coordinate={animatedDriverLocation} title="Driver" pinColor="blue">
           <Icon name="car" size={30} color="blue" />
         </Marker.Animated>
 
-        {/* Delivery location */}
+        {/* 📍 Delivery location */}
         {orderData && (
           <Marker
             coordinate={{
@@ -183,7 +190,7 @@ export default function TrackScreen() {
           </Marker>
         )}
 
-        {/* Route Polyline */}
+        {/* ➰ Route */}
         {routeCoords.length > 1 && (
           <Polyline coordinates={routeCoords} strokeColor="red" strokeWidth={3} />
         )}

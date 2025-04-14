@@ -39,24 +39,24 @@ io.on('connection', (socket) => {
 });
 
 // Simulate driver location updates every 5 seconds
-setInterval(async () => {
-  const driver = await Driver.findOne();
-  if (!driver) return;
+// setInterval(async () => {
+//   const driver = await Driver.findOne();
+//   if (!driver) return;
 
-  // Fake movement
-  let [lng, lat] = driver.location.coordinates;
-  lng += 0.0001; // Move east
-  lat += 0.00005; // Move north
+//   // Fake movement
+//   let [lng, lat] = driver.location.coordinates;
+//   lng += 0.0001; // Move east
+//   lat += 0.00005; // Move north
 
-  driver.location.coordinates = [lng, lat];
-  await driver.save();
+//   driver.location.coordinates = [lng, lat];
+//   await driver.save();
 
-  // Emit new location
-  io.emit('driverLocationUpdated', {
-    driverId: driver._id.toString(),
-    coordinates: [lng, lat],
-  });
-}, 5000);
+//   // Emit new location
+//   io.emit('driverLocationUpdated', {
+//     driverId: driver._id.toString(),
+//     coordinates: [lng, lat],
+//   });
+// }, 5000);
 
 // Start server
 const PORT = process.env.PORT || 5000;
