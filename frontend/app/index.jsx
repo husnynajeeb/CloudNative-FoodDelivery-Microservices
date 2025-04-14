@@ -8,7 +8,7 @@ export default function LoginScreen() {
   const { login, user } = useAuthStore();
   const router = useRouter();
 
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
 
   // 🔁 Redirect if already logged in
@@ -22,7 +22,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     try {
-      const res = await axios.post('/auth/login', { email, password });
+      const res = await axios.post('/auth/login', { phone, password });
       const { token, user } = res.data;
       await login(token, user);
     } catch (err) {
@@ -33,7 +33,7 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Login</Text>
-      <TextInput placeholder="Email" value={email} onChangeText={setEmail} style={styles.input} />
+      <TextInput placeholder="Phone Number" value={phone} onChangeText={setPhone} style={styles.input} />
       <TextInput placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry style={styles.input} />
       <Button title="Login" onPress={handleLogin} />
       <Text style={styles.link} onPress={() => router.push('/register')}>
