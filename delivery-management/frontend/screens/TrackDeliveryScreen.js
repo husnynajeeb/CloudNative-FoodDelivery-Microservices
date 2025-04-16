@@ -1,44 +1,77 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Alert } from 'react-native';
-import MapView, { Marker, Polyline, AnimatedRegion } from 'react-native-maps';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Alert, StyleSheet, Dimensions, Animated, Text } from 'react-native';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import { FontAwesome } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import io from 'socket.io-client';
+import polyline from '@mapbox/polyline';
 
-const API_URL = 'http://192.168.1.3:5000'; // Your backend IP
-const socket = io(API_URL);
+const { width, height } = Dimensions.get('window');
+const ASPECT_RATIO = width / height;
+const LATITUDE_DELTA = 0.0922;
+const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 
-export default function TrackScreen() {
-  const [drivers, setDrivers] = useState([]);
-  const [orderData, setOrderData] = useState(null);
-  const [status, setStatus] = useState('');
-  const [eta, setETA] = useState(null);
-  const [routeCoords, setRouteCoords] = useState([]);
+const restaurants = [
+  { id: 1, name: 'Restaurant A', latitude: 7.29233, longitude: 80.635105 },
+];
+
+const customerAddress = { latitude: 7.293935, longitude: 80.638335 };
+const GOOGLE_API_KEY = 'AIzaSyAi3F_nxCXmU6kcTP0KFXw4B4AsW-E-8jk';
+
+const mapStyle = [ /* Your map style array here */ ];
+
+export default function DriverTrackScreen() {
   const [currentLocation, setCurrentLocation] = useState(null);
+  const [nearestRestaurant, setNearestRestaurant] = useState(null);
+  const [routeCoordinates, setRouteCoordinates] = useState([]);
+  const [hasPickedUp, setHasPickedUp] = useState(false);
+  const [eta, setEta] = useState(null);
+  const [orderStatus, setOrderStatus] = useState('READY_FOR_PICKUP');
+  const [amountDue, setAmountDue] = useState(1500); // Rs.1500 COD
+  const mapRef = useRef(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const [animatedDriverLocation] = useState(
-    new AnimatedRegion({
-      latitude: 0,
-      longitude: 0,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    })
-  );
+  const getDirections = async (origin, destination) => {
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&mode=driving&key=${GOOGLE_API_KEY}`
+      );
+      const data = await response.json();
 
-  // 🛰️ Watch and emit driver's live location
+      if (data.routes.length > 0) {
+        const points = decodePolyline(data.routes[0].overview_polyline.points);
+        setRouteCoordinates(points);
+        setEta(data.routes[0].legs[0].duration.text); // Set ETA
+
+        if (mapRef.current) {
+          mapRef.current.fitToCoordinates(points, {
+            edgePadding: { top: 100, right: 100, bottom: 100, left: 100 },
+            animated: true,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching directions:', error);
+    }
+  };
+
+  const decodePolyline = (encoded) => {
+    return polyline.decode(encoded).map(([latitude, longitude]) => ({ latitude, longitude }));
+  };
+
   useEffect(() => {
+    let locationSubscription;
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Location permission not granted');
+        Alert.alert('Permission Required', 'Location permission is needed to track your delivery.');
         return;
       }
 
-      await Location.watchPositionAsync(
+      locationSubscription = await Location.watchPositionAsync(
         {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 3000,
-          distanceInterval: 10,
+          accuracy: Location.Accuracy.BestForNavigation,
+          timeInterval: 2000,
+          distanceInterval: 5,
         },
         (location) => {
           const coords = {
@@ -46,155 +79,220 @@ export default function TrackScreen() {
             longitude: location.coords.longitude,
           };
           setCurrentLocation(coords);
-
-          // 🎯 Emit to server
-          socket.emit('updateDriverLocation', {
-            driverId: orderData?.driverId || 'temp-driver', // Replace with real driverId if known
-            coordinates: [coords.longitude, coords.latitude],
-          });
-
-          // Animate marker if it's a delivery driver
-          animatedDriverLocation.timing({
-            latitude: coords.latitude,
-            longitude: coords.longitude,
-            duration: 500,
-            useNativeDriver: false,
-          }).start();
         }
       );
     })();
-  }, [orderData]);
-
-  // 🌐 Setup socket listeners
-  useEffect(() => {
-    socket.on('connect', () => {
-      console.log('✅ Connected to socket server');
-    });
-
-    socket.on('orderAssigned', async (data) => {
-      console.log('📦 Order assigned:', data);
-      setOrderData(data.order);
-      setStatus(data.order.status);
-
-      const res = await fetch(`${API_URL}/api/delivery/track/${data.order._id}`);
-      const track = await res.json();
-
-      if (track.driverLocation) {
-        animatedDriverLocation.setValue({
-          latitude: track.driverLocation.coordinates[1],
-          longitude: track.driverLocation.coordinates[0],
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        });
-      }
-
-      if (track.route) setRouteCoords(track.route);
-      if (track.eta) setETA(track.eta);
-    });
-
-    socket.on('driverCreated', (newDriver) => {
-      setDrivers((prev) => [...prev, newDriver]);
-    });
-
-    socket.on('driverLocationUpdated', (data) => {
-      if (orderData && data.driverId === orderData.driverId) {
-        animatedDriverLocation.timing({
-          latitude: data.coordinates[1],
-          longitude: data.coordinates[0],
-          duration: 500,
-          useNativeDriver: false,
-        }).start();
-      }
-    });
 
     return () => {
-      socket.off('orderAssigned');
-      socket.off('driverCreated');
-      socket.off('driverLocationUpdated');
+      if (locationSubscription) locationSubscription.remove();
     };
-  }, [orderData]);
+  }, []);
 
-  // ✅ Alert when delivered
   useEffect(() => {
-    if (status === 'delivered') {
-      Alert.alert('✅ Order Delivered', 'Your order has been delivered successfully!');
+    if (currentLocation && !hasPickedUp) {
+      let closest = null;
+      let minDistance = Infinity;
+      restaurants.forEach((restaurant) => {
+        const distance = haversineDistance(
+          currentLocation.latitude,
+          currentLocation.longitude,
+          restaurant.latitude,
+          restaurant.longitude
+        );
+        if (distance < minDistance) {
+          minDistance = distance;
+          closest = restaurant;
+        }
+      });
+      if (minDistance < 2000) {
+        setNearestRestaurant(closest);
+        setOrderStatus('READY_FOR_PICKUP');
+      } else {
+        setNearestRestaurant(null);
+        setRouteCoordinates([]);
+      }
     }
-  }, [status]);
+  }, [currentLocation, hasPickedUp]);
+
+  useEffect(() => {
+    if (currentLocation && nearestRestaurant && !hasPickedUp) {
+      getDirections(currentLocation, nearestRestaurant);
+    }
+  }, [currentLocation, nearestRestaurant, hasPickedUp]);
+
+  useEffect(() => {
+    if (currentLocation && nearestRestaurant && !hasPickedUp) {
+      const distance = haversineDistance(
+        currentLocation.latitude,
+        currentLocation.longitude,
+        nearestRestaurant.latitude,
+        nearestRestaurant.longitude
+      );
+      if (distance < 2) {
+        Alert.alert('Confirm Pickup', 'Do you want to confirm Pickup?', [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Yes',
+            onPress: () => {
+              setHasPickedUp(true);
+              setOrderStatus('OUT_FOR_DELIVERY');
+              getDirections(currentLocation, customerAddress);
+            },
+          },
+        ]);
+      }
+    }
+  }, [currentLocation, nearestRestaurant]);
+
+  useEffect(() => {
+    if (hasPickedUp && currentLocation) {
+      const distance = haversineDistance(
+        currentLocation.latitude,
+        currentLocation.longitude,
+        customerAddress.latitude,
+        customerAddress.longitude
+      );
+      if (distance < 2) {
+        Alert.alert('Complete Delivery', `Collect Rs. ${amountDue}?`, [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Yes',
+            onPress: () => {
+              setOrderStatus('DELIVERED');
+              setRouteCoordinates([]);
+              setEta(null);
+            },
+          },
+        ]);
+      }
+    }
+  }, [currentLocation, hasPickedUp]);
+
+  const haversineDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371000;
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+    const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  useEffect(() => {
+    if (currentLocation) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [currentLocation]);
 
   return (
-    <View style={{ flex: 1 }}>
-      <Text style={{ textAlign: 'center', margin: 10, fontWeight: 'bold' }}>
-        {status === 'delivered' ? '🎉 Delivered!' : `Status: ${status}`}
-      </Text>
-      {eta && <Text style={{ textAlign: 'center' }}>ETA: {eta}</Text>}
+    <View style={styles.container}>
+      <Animated.View style={[styles.mapContainer, { opacity: fadeAnim }]}>
+        <MapView
+          ref={mapRef}
+          provider={PROVIDER_GOOGLE}
+          style={styles.map}
+          customMapStyle={mapStyle}
+          showsUserLocation
+          showsMyLocationButton
+          showsCompass
+          rotateEnabled
+          initialRegion={
+            currentLocation
+              ? {
+                  ...currentLocation,
+                  latitudeDelta: LATITUDE_DELTA,
+                  longitudeDelta: LONGITUDE_DELTA,
+                }
+              : {
+                  latitude: 7.8731,
+                  longitude: 80.7718,
+                  latitudeDelta: 5,
+                  longitudeDelta: 5,
+                }
+          }
+        >
+          {nearestRestaurant && !hasPickedUp && (
+            <Marker coordinate={nearestRestaurant}>
+              <View style={styles.restaurantMarker}>
+                <FontAwesome name="building" size={20} color="#fff" />
+              </View>
+            </Marker>
+          )}
 
-      <MapView
-        style={{ flex: 1 }}
-        initialRegion={
-          currentLocation
-            ? {
-                ...currentLocation,
-                latitudeDelta: 0.05,
-                longitudeDelta: 0.05,
-              }
-            : {
-                latitude: 7.8731,
-                longitude: 80.7718,
-                latitudeDelta: 5,
-                longitudeDelta: 5,
-              }
-        }
-      >
-        {/* 🧍 Current user location */}
-        {currentLocation && (
-          <Marker
-            coordinate={currentLocation}
-            title="You are here"
-            pinColor="purple"
-          >
-            <Icon name="user" size={30} color="purple" />
-          </Marker>
+          {hasPickedUp && (
+            <Marker coordinate={customerAddress}>
+              <View style={styles.restaurantMarker}>
+                <FontAwesome name="user" size={20} color="#fff" />
+              </View>
+            </Marker>
+          )}
+
+          {routeCoordinates.length > 0 && (
+            <Polyline coordinates={routeCoordinates} strokeWidth={4} strokeColor="#FF6347" />
+          )}
+        </MapView>
+      </Animated.View>
+
+      <View style={styles.infoPanel}>
+        <View style={styles.infoBox}>
+          <FontAwesome name="clock-o" size={20} color="#444" />
+          <Text style={styles.infoText}>ETA: {eta || '...'}</Text>
+        </View>
+
+        <View style={styles.infoBox}>
+          <FontAwesome name="info-circle" size={20} color="#444" />
+          <Text style={styles.infoText}>Status: {orderStatus}</Text>
+        </View>
+
+        {(orderStatus === 'OUT_FOR_DELIVERY' || orderStatus === 'DELIVERED') && (
+          <View style={styles.infoBox}>
+            <FontAwesome name="money" size={20} color="#444" />
+            <Text style={styles.infoText}>COD: Rs. {amountDue}</Text>
+          </View>
         )}
-
-        {/* 👨‍✈️ Available drivers */}
-        {drivers.map((driver) => (
-          <Marker
-            key={driver._id}
-            coordinate={{
-              latitude: driver.location.coordinates[1],
-              longitude: driver.location.coordinates[0],
-            }}
-            title={`Driver: ${driver.name}`}
-            pinColor="blue"
-          >
-            <Icon name="car" size={30} color="blue" />
-          </Marker>
-        ))}
-
-        {/* 🚘 Animated driver */}
-        <Marker.Animated coordinate={animatedDriverLocation} title="Driver" pinColor="blue">
-          <Icon name="car" size={30} color="blue" />
-        </Marker.Animated>
-
-        {/* 📍 Delivery location */}
-        {orderData && (
-          <Marker
-            coordinate={{
-              latitude: orderData.deliveryLocation.coordinates[1],
-              longitude: orderData.deliveryLocation.coordinates[0],
-            }}
-            title="Your Order"
-            pinColor="green"
-          >
-            <Icon name="map-pin" size={30} color="green" />
-          </Marker>
-        )}
-
-        {/* ➰ Route */}
-        {routeCoords.length > 1 && (
-          <Polyline coordinates={routeCoords} strokeColor="red" strokeWidth={3} />
-        )}
-      </MapView>
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f9f9f9' },
+  mapContainer: { flex: 1, overflow: 'hidden' },
+  map: { ...StyleSheet.absoluteFillObject },
+  restaurantMarker: {
+    backgroundColor: 'red',
+    padding: 5,
+    borderRadius: 10,
+    justify: 'center',
+    alignItems: 'center',
+  },
+  infoPanel: {
+    position: 'absolute',
+    bottom: 20,
+    left: 10,
+    right: 10,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 5,
+  },
+  infoText: {
+    marginLeft: 10,
+    fontSize: 16,
+    color: '#333',
+  },
+});

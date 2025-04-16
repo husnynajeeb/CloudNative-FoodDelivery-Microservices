@@ -1,24 +1,21 @@
+// screens/LoginDelivery.js
 import React, { useEffect, useState } from 'react';
-import { View, TextInput, Button, Text, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
-import axios from '../lib/axiosInstance';
-import useAuthStore from '../store/authStore';
-import { Alert } from 'react-native';
+import { View, TextInput, Button, Text, StyleSheet, Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import axios from '../lib/axiosInstance'; // make sure this path is inside your project folder
+import useAuthStore from '../store/authStore'; // same for this
 
-export default function LoginScreen() {
+export default function LoginDelivery() {
   const { login, user } = useAuthStore();
-  const router = useRouter();
+  const navigation = useNavigation();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  // 🔁 Redirect if already logged in
   useEffect(() => {
-    if (user?.role === 'customer') {
-      //router.replace('/dashboard/customer');
-      Alert.alert('Welcome', 'Hi, I am a customer');
-    } else if (user?.role === 'restaurant') {
-      router.replace('/dashboard/restaurant');
+    if (user?.role === 'delivery') {
+      Alert.alert('Welcome', 'Hi, Delivery Partner');
+      navigation.replace('DeliveryScreen');
     }
   }, [user]);
 
@@ -26,6 +23,10 @@ export default function LoginScreen() {
     try {
       const res = await axios.post('/auth/login', { email, password });
       const { token, user } = res.data;
+      if (user.role !== 'delivery') {
+        Alert.alert("Access Denied", "This app is only for delivery partners.");
+        return;
+      }
       await login(token, user);
     } catch (err) {
       alert(err.response?.data?.message || 'Login failed');
@@ -34,11 +35,11 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>Login</Text>
+      <Text style={styles.heading}>Delivery Login</Text>
       <TextInput placeholder="Email" value={email} onChangeText={setEmail} style={styles.input} />
       <TextInput placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry style={styles.input} />
       <Button title="Login" onPress={handleLogin} />
-      <Text style={styles.link} onPress={() => router.push('/register')}>
+      <Text style={styles.link} onPress={() => navigation.navigate('RegisterDelivery')}>
         Don't have an account? Register here
       </Text>
     </View>

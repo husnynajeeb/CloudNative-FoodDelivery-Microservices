@@ -1,18 +1,21 @@
+// App.js
 import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
-import DeliveryScreen from "./screens/TrackDeliveryScreen";
+import LoginDelivery from "./screens/LoginDelivery";
+import RegisterDelivery from "./screens/RegisterDelivery";
+import DeliveryScreen from "./screens/TrackDeliveryScreen"; // example screen after login
 
 const Stack = createStackNavigator();
 
 export default function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen name="Delivery" component={DeliveryScreen} />
+      <Stack.Navigator initialRouteName="LoginDelivery">
+        <Stack.Screen name="LoginDelivery" component={LoginDelivery} />
+        <Stack.Screen name="RegisterDelivery" component={RegisterDelivery} />
+        <Stack.Screen name="DeliveryScreen" component={DeliveryScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
-
-

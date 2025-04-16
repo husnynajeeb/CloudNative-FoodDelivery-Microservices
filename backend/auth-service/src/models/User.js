@@ -21,9 +21,13 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ["customer", "restaurant", "admin"],
+    enum: ["customer", "restaurant", "admin" , "delivery"],
     default: "customer",
   },
+  profilePicture: { type: String, default: "" },
+  address: { type: String, default: "" },
+  vehicleType: { type: String, default: "" },
+  vehiclePlate: { type: String, default: "" },
 });
 
 export default mongoose.model("User", userSchema);
