@@ -1,11 +1,25 @@
-const express = require('express');
+import express from 'express';
+import { protect } from '../middleware/auth.js';
+import {
+  updateLocation,
+  getDriverLocation,
+  updateDriverStatus,
+  assignDriverToOrder,
+  getAssignedOrder,
+  createDriver,
+  getDriverById,
+} from '../controllers/deliveryController.js';
+
 const router = express.Router();
-const controller = require('../controllers/deliveryController');
 
-router.get('/drivers', controller.getDrivers);
-router.get('/orders', controller.getOrders);
-router.get('/track/:id', controller.trackOrder);
-router.post('/assign-driver', controller.assignDriver);
-router.post('/drivers', controller.createDriver);
 
-module.exports = router;
+router.patch('/:id/location',protect, updateLocation);
+router.get('/:id/location', protect, getDriverLocation);
+router.patch('/:id/status', protect, updateDriverStatus);
+router.post('/assign', protect, assignDriverToOrder); // POST body: { orderId, deliveryCoordinates }
+router.get('/assigned', protect, getAssignedOrder); // NEW ROUTE
+router.post('/driver', createDriver);
+router.get('/:id', protect, getDriverById); 
+
+
+export default router;

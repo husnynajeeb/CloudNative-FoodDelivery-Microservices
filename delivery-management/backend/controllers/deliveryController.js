@@ -1,154 +1,248 @@
-const axios = require('axios');
-const polyline = require('@mapbox/polyline');
-const Driver = require('../models/Driver');
-const Order = require('../models/Order');
+import Driver from '../models/Driver.js';
+import axios from 'axios';
+import mongoose from 'mongoose';
 
-exports.getDrivers = async (req, res) => {
-  const drivers = await Driver.find();
-  res.json(drivers);
-};
+export const createDriver = async (req, res) => {
+  const { userId, name , currentLocation, status, rating, deliveriesCompleted } = req.body;
 
-exports.getOrders = async (req, res) => {
-  const orders = await Order.find();
-  res.json(orders);
-};
-
-exports.trackOrder = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ message: 'Order not found' });
+    // Ensure the location is a GeoJSON Point
+    const driverLocation = {
+      type: 'Point',
+      coordinates: currentLocation.coordinates || [0, 0] // Default to [0, 0] if no coordinates
+    };
 
-    const driver = await Driver.findById(order.driverId);
-    if (!driver) return res.status(404).json({ message: 'Driver not found' });
-
-    const [driverLng, driverLat] = driver.location.coordinates;
-    const [orderLng, orderLat] = order.deliveryLocation.coordinates;
-
-    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${driverLat},${driverLng}&destination=${orderLat},${orderLng}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
-    const response = await axios.get(url);
-
-    const route = response.data.routes[0];
-    if (!route || !route.legs?.length) {
-      return res.status(500).json({ message: 'No route found' });
-    }
-
-    const eta = route.legs[0].duration.text;
-    const points = route.overview_polyline?.points;
-    if (!points) return res.status(500).json({ message: 'No polyline found' });
-
-    const decoded = polyline.decode(points); // [lat, lng]
-    const routeCoords = decoded.map(([lat, lng]) => ({
-      latitude: lat,
-      longitude: lng,
-    }));
-
-    res.json({
-      driverLocation: driver.location,
-      status: order.status,
-      eta,
-      route: routeCoords,
+    // Create a new driver instance
+    const driver = new Driver({
+      userId,
+      name,
+      currentLocation: driverLocation, // Use structured location data
+      status,
+      rating,
+      deliveriesCompleted,
     });
+
+    // Save the driver in the database
+    await driver.save();
+
+    console.log('Saved Driver:', driver);  // Log the full driver object
+
+    // Send success response
+    res.status(201).json({ message: 'Driver created successfully', driver });
   } catch (err) {
-    console.error('Track order failed:', err.message);
-    res.status(500).json({ message: 'Failed to track order' });
+    // Send error response if something goes wrong
+    res.status(500).json({ error: err.message });
   }
 };
 
-exports.createDriver = async (req, res) => {
-  const driver = await Driver.create(req.body);
-  req.io.emit('driverCreated', driver);
-  res.status(201).json(driver);
-};
+// Update driver's location
+export const updateLocation = async (req, res) => {
+  const { coordinates } = req.body;
+  const driverId = req.params.id;
 
-async function simulateDriverMovement(driverId, orderId, routeCoords, io) {
-  for (let i = 0; i < routeCoords.length; i++) {
-    const [lng, lat] = routeCoords[i]; // [lng, lat]
+  try {
+    const driver = await Driver.findByIdAndUpdate(
+      driverId,
+      {
+        currentLocation: {
+          type: 'Point',
+          coordinates,
+        },
+      },
+      { new: true }
+    );
 
-    const driver = await Driver.findById(driverId);
-    if (!driver) break;
-
-    driver.location.coordinates = [lng, lat];
-    await driver.save();
-
-    io.emit('driverLocationUpdated', {
-      driverId: driver._id.toString(),
-      coordinates: [lng, lat],
+    // Emit to WebSocket
+    req.io.emit('driverLocationUpdated', {
+      driverId,
+      coordinates,
     });
 
-    // Emit live ETA updates only while the order isn't delivered
-    const order = await Order.findById(orderId);
-    if (order && order.status !== 'delivered') {
-      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${lat},${lng}&destination=${order.deliveryLocation.coordinates[1]},${order.deliveryLocation.coordinates[0]}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
-      const res = await axios.get(url);
-      const eta = res.data.routes[0]?.legs[0]?.duration?.text;
+    res.json(driver);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
 
-      if (eta) {
-        io.emit('etaUpdated', { orderId, eta });
-      }
+
+// Get current location of a driver
+export const getDriverLocation = async (req, res) => {
+  try {
+    const driver = await Driver.findById(req.params.id);
+    if (!driver) return res.status(404).json({ message: 'Driver not found' });
+    res.json(driver.currentLocation);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+// Change driver status
+export const updateDriverStatus = async (req, res) => {
+  try {
+    const driver = await Driver.findByIdAndUpdate(
+      req.params.id,
+      { status: req.body.status },
+      { new: true }
+    );
+    res.json(driver);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+
+/// POST /api/delivery/assign
+export const assignDriverToOrder = async (req, res) => {
+  const { orderId, deliveryCoordinates } = req.body;
+
+
+  // Validate input
+  if (!orderId || !deliveryCoordinates || !Array.isArray(deliveryCoordinates) || deliveryCoordinates.length !== 2) {
+    return res.status(400).json({ error: 'Invalid orderId or delivery coordinates' });
+  }
+
+  try {
+    // Find nearest available driver using geospatial query
+    const driver = await Driver.findOne({
+      status: 'available',
+      currentLocation: {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: deliveryCoordinates,
+          },
+          $maxDistance: 50000, // max 50km, adjust as needed
+        },
+      },
+    });
+
+    if (!driver) {
+      console.warn('⚠️ No available drivers near the location');
+      return res.status(404).json({ message: 'No drivers available' });
     }
 
-    await new Promise((res) => setTimeout(res, 1500));
-  }
+    console.log('✅ Found driver:', driver.userId);
 
-  // ✅ Mark order as delivered and update driver
-  const order = await Order.findById(orderId);
-  if (order) {
-    order.status = 'delivered';
-    await order.save();
-    io.emit('orderDelivered', { orderId: order._id });
-  }
+    // Update order with driver ID in the order-service
+    const orderUpdateResponse = await axios.put(
+      `http://localhost:5001/api/order/${orderId}/assign-driver`,
+      { driverId: driver.userId }
+    );
 
-  const driver = await Driver.findById(driverId);
-  if (driver) {
-    driver.isAvailable = true;
-    driver.currentOrderId = null;
+    const updatedOrder = orderUpdateResponse.data?.order;
+
+    if (!updatedOrder) {
+      console.error('❌ Failed to update order with driver');
+      return res.status(500).json({ error: 'Order service did not return updated order' });
+    }
+
+    console.log('📝 Order updated with driver:', updatedOrder._id);
+
+    // Update driver status to 'busy'
+    driver.status = 'busy';
     await driver.save();
 
-    // Emit final driver location when delivery is completed
-    io.emit('driverLocationUpdated', {
-      driverId: driver._id.toString(),
-      coordinates: driver.location.coordinates,
-    });
-  }
-}
-
-exports.assignDriver = async (req, res) => {
-  const { customerId, deliveryLocation } = req.body;
-  const io = req.io;
-
-  const nearbyDriver = await Driver.findOne({
-    isAvailable: true,
-    location: {
-      $near: {
-        $geometry: deliveryLocation,
-        $maxDistance: 10000
+    // Send successful response
+    res.status(200).json({
+      message: 'Driver assigned successfully',
+      driver: {
+        id: driver._id,
+        name: driver.userId?.name || 'N/A',
       },
-    },
-  });
+      order: updatedOrder,
+    });
 
-  if (!nearbyDriver) return res.status(404).json({ message: 'No drivers available nearby' });
+  } catch (err) {
+    console.error('❌ Error assigning driver:', err.message);
+    res.status(500).json({ error: 'Error assigning driver' });
+  }
+};
 
-  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${nearbyDriver.location.coordinates[1]},${nearbyDriver.location.coordinates[0]}&destination=${deliveryLocation.coordinates[1]},${deliveryLocation.coordinates[0]}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
-  const response = await axios.get(url);
-  const route = response.data.routes[0];
 
-  const decoded = polyline.decode(route.overview_polyline.points);
-  const routeCoords = decoded.map(([lat, lng]) => [lng, lat]);
+// controllers/deliveryController.js
+export const getAssignedOrder = async (req, res) => {
+  const driverId = req.user._id; // Assuming you're using authentication middleware
+  console.log(driverId)
+  try {
+    const response = await axios.get(
+      `http://localhost:5001/api/order/add`,
+      { driverId }
+    );
+    console.log(response)
+    // const order = await Order.findOne({ assignedDriver: driverId, status: 'OUT_FOR_DELIVERY' });
+    if (!response) return res.status(404).json({ message: 'No assigned orders' });
+    res.json(response); // Matches your frontend expecting an array
+  } catch (error) {
+    res.status(500).json({ error: 'Server error while fetching assigned order' });
+  }
+};
 
-  const newOrder = await Order.create({
-    customerId,
-    deliveryLocation,
-    status: 'assigned',
-    driverId: nearbyDriver._id,
-    route: routeCoords,
-  });
 
-  nearbyDriver.isAvailable = false;
-  nearbyDriver.currentOrderId = newOrder._id;
-  await nearbyDriver.save();
+export const getDriverById = async (req, res) => {
+  try {
+    const driverId = req.params.id;
 
-  io.emit('orderAssigned', { order: newOrder });
-  res.status(201).json({ order: newOrder });
+    // Fetch the driver from the delivery service
+    const driver = await Driver.findById(driverId);
 
-  simulateDriverMovement(nearbyDriver._id, newOrder._id, routeCoords, io);
+    if (!driver) {
+      return res.status(404).json({ message: 'Driver not found' });
+    }
+
+    // Fetch the user details from the auth-service using the userId
+    const userId = driver.userId;
+    let userName = 'Name not available';
+
+    try {
+      // Send request to the auth-service to get user details by userId
+      const userResponse = await axios.get(`http://localhost:5000/api/auth/users/${userId}`);
+      userName = userResponse.data.name;
+    } catch (err) {
+      console.error('Error fetching user data from auth service', err.message);
+    }
+
+    // Send back driver details including the user's name
+    res.json({
+      ...driver.toObject(),
+      driverName: userName,
+    });
+
+  } catch (error) {
+    console.error('Error in getDriverById:', error);
+    res.status(500).json({ error: 'Error fetching driver' });
+  }
+};
+
+export const verifyDriver = async (driverId) => {
+  try {
+    console.log(driverId)
+    // Fetch the driver from the delivery service
+    const driver = await Driver.findOne({userId: driverId});
+
+    if (!driver) {
+      return 'Driver not found' ;
+    }
+
+    // Fetch the user details from the auth-service using the userId
+    const userId = driver.userId;
+    let userName = 'Name not available';
+
+    try {
+      // Send request to the auth-service to get user details by userId
+      const userResponse = await axios.get(`http://localhost:5000/api/auth/users/${userId}`);
+      userName = userResponse.data.name;
+    } catch (err) {
+      console.error('Error fetching user data from auth service', err.message);
+    }
+
+    // Send back driver details including the user's name
+    return {
+      ...driver.toObject(),
+      driverName: userName,
+    };
+
+  } catch (error) {
+    console.error('Error in getDriverById:', error);
+    return 'Error fetching driver' ;
+  }
 };

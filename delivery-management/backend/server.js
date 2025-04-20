@@ -1,16 +1,17 @@
-const express = require('express');
-const http = require('http');
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-const cors = require('cors');
-const deliveryRoutes = require('./routes/deliveryRoutes');
-const Driver = require('./models/Driver');
+import express from 'express';
+import http from 'http';
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import { Server } from 'socket.io';
+
+import deliveryRoutes from './routes/deliveryRoutes.js';
+import Driver from './models/Driver.js';
 
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const { Server } = require('socket.io');
 const io = new Server(server, { cors: { origin: '*' } });
 
 // Middleware
@@ -19,18 +20,36 @@ app.use(cors());
 app.use(express.json());
 app.use('/api/delivery', deliveryRoutes);
 
-// MongoDB
+// MongoDB Connection
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/food-delivery')
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => console.error('❌ MongoDB connection error:', err));
 
-// Socket.IO handlers
+// Socket.IO Real-time Location Handling
 io.on('connection', (socket) => {
   console.log('🟢 A user connected');
-  
+
   socket.on('updateDriverLocation', async (driverLocation) => {
-    console.log('Emitting driver location:', driverLocation);  // Debugging log
-    socket.broadcast.emit('driverLocationUpdated', driverLocation);
+    const { driverId, coordinates } = driverLocation;
+
+    if (!driverId || !coordinates || coordinates.length !== 2) {
+      console.log('❌ Invalid location update payload');
+      return;
+    }
+
+    try {
+      await Driver.findByIdAndUpdate(driverId, {
+        location: {
+          latitude: coordinates[0],
+          longitude: coordinates[1],
+        },
+      });
+
+      socket.broadcast.emit('driverLocationUpdated', driverLocation);
+      console.log('📡 Driver location updated:', driverLocation);
+    } catch (err) {
+      console.error('❌ Error updating driver location:', err.message);
+    }
   });
 
   socket.on('disconnect', () => {
@@ -38,26 +57,5 @@ io.on('connection', (socket) => {
   });
 });
 
-// Simulate driver location updates every 5 seconds
-// setInterval(async () => {
-//   const driver = await Driver.findOne();
-//   if (!driver) return;
-
-//   // Fake movement
-//   let [lng, lat] = driver.location.coordinates;
-//   lng += 0.0001; // Move east
-//   lat += 0.00005; // Move north
-
-//   driver.location.coordinates = [lng, lat];
-//   await driver.save();
-
-//   // Emit new location
-//   io.emit('driverLocationUpdated', {
-//     driverId: driver._id.toString(),
-//     coordinates: [lng, lat],
-//   });
-// }, 5000);
-
-// Start server
 const PORT = process.env.PORT || 5003;
 server.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));

@@ -1,15 +1,32 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const driverSchema = new mongoose.Schema({
-  name: String,
-  location: {
-    type: { type: String, enum: ['Point'], default: 'Point' },
-    coordinates: { type: [Number], default: [0, 0] },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    unique: true,
   },
-  isAvailable: { type: Boolean, default: true },
-  currentOrderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', default: null },
+  name: {  // New field for name
+    type: String,
+    required: true,  // If the name is required
+  },
+  status: {
+    type: String,
+    enum: ['available', 'busy', 'offline'],
+    default: 'available',
+  },
+  currentLocation: {
+    type: { type: String, enum: ['Point'], required: true },
+    coordinates: { type: [Number], required: true }
+  },
+  rating: { type: Number, default: 5.0 },
+  deliveriesCompleted: { type: Number, default: 0 },
+}, {
+  timestamps: true
 });
 
-driverSchema.index({ location: '2dsphere' });
+// ✅ Correctly create 2dsphere index on `currentLocation`
+driverSchema.index({ currentLocation: '2dsphere' });
 
-module.exports = mongoose.model('Driver', driverSchema);
+export default mongoose.model('Driver', driverSchema);

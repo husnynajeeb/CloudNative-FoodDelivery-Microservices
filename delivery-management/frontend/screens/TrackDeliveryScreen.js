@@ -4,31 +4,48 @@ import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { FontAwesome } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import polyline from '@mapbox/polyline';
+import axios from '../lib/axiosInstance';
+import useAuthStore from '../store/authStore';
 
 const { width, height } = Dimensions.get('window');
 const ASPECT_RATIO = width / height;
 const LATITUDE_DELTA = 0.0922;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
-
-const restaurants = [
-  { id: 1, name: 'Restaurant A', latitude: 7.29233, longitude: 80.635105 },
-];
-
-const customerAddress = { latitude: 7.293935, longitude: 80.638335 };
-const GOOGLE_API_KEY = 'AIzaSyAi3F_nxCXmU6kcTP0KFXw4B4AsW-E-8jk';
-
-const mapStyle = [ /* Your map style array here */ ];
+const GOOGLE_API_KEY = 'AIzaSyAi3F_nxCXmU6kcTP0KFXw4B4AsW-E-8jk'; // make sure this is secured!
 
 export default function DriverTrackScreen() {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [nearestRestaurant, setNearestRestaurant] = useState(null);
+  const [customerAddress, setCustomerAddress] = useState(null);
   const [routeCoordinates, setRouteCoordinates] = useState([]);
   const [hasPickedUp, setHasPickedUp] = useState(false);
-  const [eta, setEta] = useState(null);
   const [orderStatus, setOrderStatus] = useState('READY_FOR_PICKUP');
-  const [amountDue, setAmountDue] = useState(1500); // Rs.1500 COD
+  const [amountDue, setAmountDue] = useState(0);
+  const [orderId, setOrderId] = useState(null);
+  const [eta, setEta] = useState(null);
+
   const mapRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const { token, user } = useAuthStore((state) => state);
+  const driverId = user?._id || user?.id;
+  console.log(user)
+
+  const decodePolyline = (encoded) =>
+    polyline.decode(encoded).map(([latitude, longitude]) => ({ latitude, longitude }));
+
+  const haversineDistance = (lat1, lon1, lat2, lon2) => {
+    const toRad = (x) => (x * Math.PI) / 180;
+    const R = 6371e3; // meters
+    const φ1 = toRad(lat1);
+    const φ2 = toRad(lat2);
+    const Δφ = toRad(lat2 - lat1);
+    const Δλ = toRad(lon2 - lon1);
+    const a =
+      Math.sin(Δφ / 2) ** 2 +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
 
   const getDirections = async (origin, destination) => {
     try {
@@ -36,30 +53,62 @@ export default function DriverTrackScreen() {
         `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&mode=driving&key=${GOOGLE_API_KEY}`
       );
       const data = await response.json();
-
       if (data.routes.length > 0) {
         const points = decodePolyline(data.routes[0].overview_polyline.points);
         setRouteCoordinates(points);
-        setEta(data.routes[0].legs[0].duration.text); // Set ETA
-
-        if (mapRef.current) {
-          mapRef.current.fitToCoordinates(points, {
-            edgePadding: { top: 100, right: 100, bottom: 100, left: 100 },
-            animated: true,
-          });
-        }
+        const etaValue = data.routes[0].legs[0].duration.text;
+        setEta(etaValue);
       }
     } catch (error) {
       console.error('Error fetching directions:', error);
     }
   };
 
-  const decodePolyline = (encoded) => {
-    return polyline.decode(encoded).map(([latitude, longitude]) => ({ latitude, longitude }));
+  const fetchOrderDetails = async () => {
+    try {
+      const res = await axios.post('http://192.168.1.3:5001/api/order/add', {driverId:user?.id},{
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      console.log(res.data);
+        const order = res.data;
+        setOrderId(res.data.order._id);
+        setOrderStatus(res.data.order.status);
+        setAmountDue(res.data.order.totalAmount);
+        setNearestRestaurant({
+        latitude: res.data.restaurant.location.coordinates[1],
+          longitude: res.data.restaurant.location.coordinates[0],
+        });
+        setCustomerAddress({
+          latitude: res.data.order.deliveryAddress.coordinates[1],
+          longitude: res.data.order.deliveryAddress.coordinates[0],
+        });
+      
+    } catch (error) {
+      console.error('Error fetching order details:', error.message);
+      console.error('Error response:', error.response ? error.response.data : 'No response');
+    }
+  };
+ 
+
+  const updateOrderStatus = async (id, status) => {
+    try {
+     await axios.patch(
+        `http://192.168.1.3:5001/api/order/${id}/status`,{status},
+         { headers: { Authorization: `Bearer ${token}` } }
+      );
+       setOrderStatus(status);
+     } catch (error) {
+      console.error('Error updating order status:', error);
+     }
   };
 
   useEffect(() => {
+    fetchOrderDetails();
+  }, []);
+
+   useEffect(() => {
     let locationSubscription;
+
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -89,76 +138,46 @@ export default function DriverTrackScreen() {
   }, []);
 
   useEffect(() => {
-    if (currentLocation && !hasPickedUp) {
-      let closest = null;
-      let minDistance = Infinity;
-      restaurants.forEach((restaurant) => {
-        const distance = haversineDistance(
-          currentLocation.latitude,
-          currentLocation.longitude,
-          restaurant.latitude,
-          restaurant.longitude
-        );
-        if (distance < minDistance) {
-          minDistance = distance;
-          closest = restaurant;
-        }
-      });
-      if (minDistance < 2000) {
-        setNearestRestaurant(closest);
-        setOrderStatus('READY_FOR_PICKUP');
-      } else {
-        setNearestRestaurant(null);
-        setRouteCoordinates([]);
-      }
-    }
-  }, [currentLocation, hasPickedUp]);
+    if (!currentLocation || !nearestRestaurant) return;
 
-  useEffect(() => {
-    if (currentLocation && nearestRestaurant && !hasPickedUp) {
+    const distanceToRestaurant = haversineDistance(
+      currentLocation.latitude,
+      currentLocation.longitude,
+      nearestRestaurant.latitude,
+      nearestRestaurant.longitude
+    );
+
+    if (distanceToRestaurant < 50 && !hasPickedUp) {
+      Alert.alert('Pickup Order', 'Have you picked up the order?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes',
+          onPress: () => {
+            setHasPickedUp(true);
+            updateOrderStatus(orderId, 'OUT_FOR_DELIVERY');
+            getDirections(currentLocation, customerAddress);
+          },
+        },
+      ]);
+    } else if (!hasPickedUp) {
       getDirections(currentLocation, nearestRestaurant);
     }
-  }, [currentLocation, nearestRestaurant, hasPickedUp]);
 
-  useEffect(() => {
-    if (currentLocation && nearestRestaurant && !hasPickedUp) {
-      const distance = haversineDistance(
-        currentLocation.latitude,
-        currentLocation.longitude,
-        nearestRestaurant.latitude,
-        nearestRestaurant.longitude
-      );
-      if (distance < 2) {
-        Alert.alert('Confirm Pickup', 'Do you want to confirm Pickup?', [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Yes',
-            onPress: () => {
-              setHasPickedUp(true);
-              setOrderStatus('OUT_FOR_DELIVERY');
-              getDirections(currentLocation, customerAddress);
-            },
-          },
-        ]);
-      }
-    }
-  }, [currentLocation, nearestRestaurant]);
-
-  useEffect(() => {
-    if (hasPickedUp && currentLocation) {
-      const distance = haversineDistance(
+    if (hasPickedUp && customerAddress) {
+      const distanceToCustomer = haversineDistance(
         currentLocation.latitude,
         currentLocation.longitude,
         customerAddress.latitude,
         customerAddress.longitude
       );
-      if (distance < 2) {
+
+      if (distanceToCustomer < 20) {
         Alert.alert('Complete Delivery', `Collect Rs. ${amountDue}?`, [
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Yes',
             onPress: () => {
-              setOrderStatus('DELIVERED');
+              updateOrderStatus(orderId, 'DELIVERED');
               setRouteCoordinates([]);
               setEta(null);
             },
@@ -166,89 +185,62 @@ export default function DriverTrackScreen() {
         ]);
       }
     }
-  }, [currentLocation, hasPickedUp]);
-
-  const haversineDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371000;
-    const φ1 = (lat1 * Math.PI) / 180;
-    const φ2 = (lat2 * Math.PI) / 180;
-    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-    const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
+  }, [currentLocation, hasPickedUp, nearestRestaurant, customerAddress]);
 
   useEffect(() => {
-    if (currentLocation) {
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [currentLocation]);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   return (
     <View style={styles.container}>
-      <Animated.View style={[styles.mapContainer, { opacity: fadeAnim }]}>
-        <MapView
-          ref={mapRef}
-          provider={PROVIDER_GOOGLE}
-          style={styles.map}
-          customMapStyle={mapStyle}
-          showsUserLocation
-          showsMyLocationButton
-          showsCompass
-          rotateEnabled
-          initialRegion={
-            currentLocation
-              ? {
-                  ...currentLocation,
-                  latitudeDelta: LATITUDE_DELTA,
-                  longitudeDelta: LONGITUDE_DELTA,
-                }
-              : {
-                  latitude: 7.8731,
-                  longitude: 80.7718,
-                  latitudeDelta: 5,
-                  longitudeDelta: 5,
-                }
-          }
-        >
-          {nearestRestaurant && !hasPickedUp && (
-            <Marker coordinate={nearestRestaurant}>
-              <View style={styles.restaurantMarker}>
-                <FontAwesome name="building" size={20} color="#fff" />
-              </View>
-            </Marker>
-          )}
-
-          {hasPickedUp && (
-            <Marker coordinate={customerAddress}>
-              <View style={styles.restaurantMarker}>
-                <FontAwesome name="user" size={20} color="#fff" />
-              </View>
-            </Marker>
-          )}
-
-          {routeCoordinates.length > 0 && (
-            <Polyline coordinates={routeCoordinates} strokeWidth={4} strokeColor="#FF6347" />
-          )}
-        </MapView>
-      </Animated.View>
-
+      {currentLocation && (
+        <Animated.View style={[styles.mapContainer, { opacity: fadeAnim }]}>
+          <MapView
+            ref={mapRef}
+            provider={PROVIDER_GOOGLE}
+            style={styles.map}
+            showsUserLocation
+            showsMyLocationButton
+            showsCompass
+            initialRegion={{
+              ...currentLocation,
+              latitudeDelta: LATITUDE_DELTA,
+              longitudeDelta: LONGITUDE_DELTA,
+            }}
+          >
+            {nearestRestaurant && !hasPickedUp && (
+              <Marker coordinate={nearestRestaurant}>
+                <View style={styles.restaurantMarker}>
+                  <FontAwesome name="building" size={20} color="#fff" />
+                </View>
+              </Marker>
+            )}
+            {hasPickedUp && customerAddress && (
+              <Marker coordinate={customerAddress}>
+                <View style={styles.restaurantMarker}>
+                  <FontAwesome name="user" size={20} color="#fff" />
+                </View>
+              </Marker>
+            )}
+            {routeCoordinates.length > 0 && (
+              <Polyline coordinates={routeCoordinates} strokeWidth={4} strokeColor="#FF6347" />
+            )}
+          </MapView>
+        </Animated.View>
+      )}
       <View style={styles.infoPanel}>
         <View style={styles.infoBox}>
           <FontAwesome name="clock-o" size={20} color="#444" />
           <Text style={styles.infoText}>ETA: {eta || '...'}</Text>
         </View>
-
         <View style={styles.infoBox}>
           <FontAwesome name="info-circle" size={20} color="#444" />
           <Text style={styles.infoText}>Status: {orderStatus}</Text>
         </View>
-
         {(orderStatus === 'OUT_FOR_DELIVERY' || orderStatus === 'DELIVERED') && (
           <View style={styles.infoBox}>
             <FontAwesome name="money" size={20} color="#444" />
@@ -268,7 +260,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'red',
     padding: 5,
     borderRadius: 10,
-    justify: 'center',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   infoPanel: {
