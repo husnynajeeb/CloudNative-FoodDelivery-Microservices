@@ -27,5 +27,15 @@ services:
     depends_on:
       - mongo
 
+  restaurant-service:
+    build: ./restaurant-service
+    container_name: restaurant-service
+    ports:
+      - "5002:5002"
+    env_file:
+      - ./restaurant-service/.env
+    depends_on:
+      - mongo
+
 volumes:
   mongo_data:

@@ -5,3 +5,7 @@ auth-service/.env
 order-service/node_modules/
 order-service/dist/
 order-service/.env
+
+restaurant-service/node_modules/
+restaurant-service/dist/
+restaurant-service/.env

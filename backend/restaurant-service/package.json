@@ -1,7 +1,13 @@
+<<<<<<< HEAD
 {
   "name": "restaurant-service",
   "version": "1.0.0",
   "main": "src/app.js",
+=======
+{ "name": "restaurant-service",
+  "version": "1.0.0",
+  "main": "index.js",
+>>>>>>> farthas_dev
   "type": "module",
   "scripts": {
     "start": "node src/app.js",
@@ -10,6 +16,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+<<<<<<< HEAD
   "description": "Restaurant Management Service for food delivery platform",
   "dependencies": {
     "cors": "^2.8.5",
@@ -17,8 +24,22 @@
     "express": "^4.21.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.7.3"
+=======
+  "description": "",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.13.2"
+>>>>>>> farthas_dev
   },
   "devDependencies": {
     "nodemon": "^3.1.9"
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> farthas_dev
