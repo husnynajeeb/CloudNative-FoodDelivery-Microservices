@@ -6,6 +6,7 @@ import {
   deleteMenuItem,
   getMenuByRestaurantId
 } from '../controllers/menuController.js';
+import { getPendingOrders } from '../controllers/orderController.js';
 import { verifyRestaurant } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -18,5 +19,6 @@ router.delete('/:id', verifyRestaurant, deleteMenuItem);
 
 // 🌐 Public Route – for customers
 router.get('/restaurant/:restaurantId', getMenuByRestaurantId);
+router.get('/orders', verifyRestaurant, getPendingOrders);
 
 export default router;

@@ -103,3 +103,12 @@ export const login = async (req, res) => {
     }
   });
 };
+
+export const getAllRestaurants = async (req, res) => {
+  try {
+    const restaurants = await Restaurant.find().select('-password');
+    res.json(restaurants);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

@@ -1,14 +1,14 @@
 import mongoose from 'mongoose';
 
 const orderSchema = new mongoose.Schema({
-  customerId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Customer' },
-  restaurantId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Restaurant' },
+  customerId: { type: String, required: true },
+  restaurantId: { type: String, required: true },
   items: [
     {
       name: String,
       foodId: String,
       quantity: Number,
-      price: Number,
+      price: Number
     }
   ],
   totalAmount: { type: Number, required: true },
@@ -17,14 +17,14 @@ const orderSchema = new mongoose.Schema({
     enum: ['pending', 'accepted', 'preparing', 'dispatched', 'delivered', 'cancelled'],
     default: 'pending'
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
   deliveryAddress: {
     street: String,
     city: String,
     zip: String
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
   }
 });
 
