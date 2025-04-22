@@ -6,6 +6,9 @@ import axios from '../lib/axiosInstance';
 import useAuthStore from '../store/authStore';
 import Input from '../app/ui/Input';
 import Button from '../app/ui/Button';
+import { StripeProvider } from '@stripe/stripe-react-native';
+
+
 
 export default function LoginScreen() {
   const { login, user } = useAuthStore();
@@ -65,6 +68,7 @@ export default function LoginScreen() {
   };
 
   return (
+    <StripeProvider publishableKey="pk_test_51REstHCtYURynd6PFDrmHpXkOCJrq2VLc8gYeL3VFjDO6wzblZ3Qr1Ur7D4RldEnoy4aobqQOMiFfrnR41U7VkI5000saCKGEG" >
     <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.header}>
@@ -133,6 +137,7 @@ export default function LoginScreen() {
         </View>
       </View>
     </View>
+    </StripeProvider>
   );
 }
 
