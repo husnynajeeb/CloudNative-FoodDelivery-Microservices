@@ -1,2 +1,2 @@
-payment/node_modules/
-payment/.env
+node_modules/
+.env
