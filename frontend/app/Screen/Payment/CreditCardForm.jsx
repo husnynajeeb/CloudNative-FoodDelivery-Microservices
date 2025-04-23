@@ -9,7 +9,7 @@ const PaymentScreen = () => {
     try {
       // 1. Fetch Payment Intent
       const response = await axios.post(
-        "http://192.168.42.110:5000/payments/initiate",
+        "http://192.168.42.110:5003/payments/initiate",
         { amount: 1000, currency: "lkr" } // Explicitly specify currency
       );
 
