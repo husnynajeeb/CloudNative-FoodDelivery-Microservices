@@ -24,3 +24,8 @@ export const restaurantOnly = (req, res, next) => {
   if (req.user.role !== 'restaurant') return res.status(403).json({ message: 'Access denied' });
   next();
 };
+// Middleware to ensure access is limited to delivery drivers only
+export const deliveryOnly = (req, res, next) => {
+  if (req.user.role !== 'delivery') return res.status(403).json({ message: 'Access denied' });
+  next();
+};

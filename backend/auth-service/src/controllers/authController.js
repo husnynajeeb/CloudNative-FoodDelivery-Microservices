@@ -1,8 +1,11 @@
 import Customer from "../models/Customer.js";
 import Restaurant from "../models/Restaurant.js";
 import Admin from "../models/Admin.js";
+import Driver from "../models/Driver.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import axios from "axios";
+
 
 export const registerCustomer = async (req, res) => {
   try {
@@ -26,7 +29,7 @@ export const registerCustomer = async (req, res) => {
 
 export const registerRestaurant = async (req, res) => {
   try {
-    const { businessName, address, phone, email, password} = req.body;
+    const { businessName, address, phone, email, password , location} = req.body;
     const role = "restaurant";
 
     const exists = await Restaurant.findOne({ businessName });
@@ -35,7 +38,7 @@ export const registerRestaurant = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const restaurant = new Restaurant({ businessName, address, phone, email, password: hashedPassword, role });
+    const restaurant = new Restaurant({ businessName, address, phone, email, password: hashedPassword, role , location });
     await restaurant.save();
 
     res.status(201).json({ message: "Restaurant registered successfully" });
@@ -71,7 +74,7 @@ export const login = async (req, res) => {
 
   // Try to login using phone (for customer)
   if (phone) {
-    user = await Customer.findOne({ phone });
+    user = await Customer.findOne({ phone }) || await Driver.findOne({ phone });
   }
 
   // Try restaurant login using businessName
@@ -112,3 +115,73 @@ export const getAllRestaurants = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+export const AllRestaurants = async (req, res) => {
+  const data = await Restaurant.find();
+  res.json(data);
+};
+
+
+export const getRestaurantById = async (req, res) => {
+  const data = await Restaurant.findById(req.params.id);
+  if (!data) return res.status(404).json({ message: "Not found" });
+  res.json(data);
+};
+
+
+
+
+export const registerDriver = async (req, res) => {
+  try {
+    const { name, phone, email, password, vehicleType, vehiclePlate, address, profilePicture , location } = req.body;
+
+    const exists = await Driver.findOne({ phone });
+    if (exists) return res.status(409).json({ message: "Driver already exists" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const driver = new Driver({
+      name,
+      phone,
+      email,
+      password: hashedPassword,
+      vehicleType,
+      vehiclePlate,
+      address,
+      profilePicture,
+      role: "delivery",
+      location
+    });
+
+    await driver.save();
+
+    // ✅ Send request to delivery service to create DeliveryProfile
+    await axios.post(`http://localhost:5003/api/delivery/driver`, {
+      authDriverId: driver._id,
+       location: location || {
+        type: 'Point',
+        coordinates: [0, 0], // fallback default
+      }
+    });
+
+    res.status(201).json({ message: "Driver registered successfully" });
+  } catch (err) {
+    console.error("Error during driver registration:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+export const getDriverById = async (req, res) => {
+  try {
+    const driver = await Driver.findById(req.params.id).select('-password'); // exclude password
+    if (!driver) return res.status(404).json({ message: 'Driver not found' });
+    res.json(driver);
+  } catch (err) {
+    console.error("🔴 Error fetching driver by ID:", err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+

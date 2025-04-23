@@ -9,3 +9,8 @@ order-service/.env
 restaurant-service/node_modules/
 restaurant-service/dist/
 restaurant-service/.env
+
+
+delivery-service/node_modules/
+delivery-service/dist/
+delivery-service/.env

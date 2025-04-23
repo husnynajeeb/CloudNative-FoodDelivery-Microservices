@@ -4,9 +4,9 @@ import {
   getMyMenuItems,
   updateMenuItem,
   deleteMenuItem,
-  getMenuByRestaurantId
+  getMenuByRestaurantId,
 } from '../controllers/menuController.js';
-import { getPendingOrders } from '../controllers/orderController.js';
+import { getPendingOrders , updateOrderStatus } from '../controllers/orderController.js';
 import { verifyRestaurant } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -20,5 +20,6 @@ router.delete('/:id', verifyRestaurant, deleteMenuItem);
 // 🌐 Public Route – for customers
 router.get('/restaurant/:restaurantId', getMenuByRestaurantId);
 router.get('/orders', verifyRestaurant, getPendingOrders);
+router.patch('/orders/:id/status', verifyRestaurant, updateOrderStatus);
 
 export default router;
