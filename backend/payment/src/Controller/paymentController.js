@@ -94,7 +94,7 @@ export const confirmPayment = async (req, res) => {
 
     // 3. Send notifications
     const notificationResults = {};
-    /*
+    
     // SMS via Twilio
     if (payment.phone) {
       try {
@@ -112,7 +112,7 @@ export const confirmPayment = async (req, res) => {
       }
       
     }
-*/
+
     // Email via Nodemailer
     if (payment.email) {
       try {
@@ -122,8 +122,9 @@ export const confirmPayment = async (req, res) => {
           subject: 'Payment Confirmation',
           html: `
             <h1>Thank you for your payment!</h1>
-            <p>Amount: ${paymentIntent.amount/100} ${paymentIntent.currency.toUpperCase()}</p>
-            <p>Transaction ID: ${paymentIntent.id}</p>
+<p>You’ve successfully paid ${paymentIntent.amount/100} ${paymentIntent.currency.toUpperCase()}.</p>
+<p>Your transaction has been completed.</p>
+<p>Thank you. Please use our service again.</p>
           `
         });
       } catch (emailError) {
