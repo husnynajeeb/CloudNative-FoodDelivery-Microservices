@@ -4,7 +4,9 @@ import axios from 'axios';
 // ✅ Place new order
 export const placeOrder = async (req, res) => {
   try {
-    const { customerId, restaurantId, items, totalAmount, deliveryAddress , location } = req.body;
+    console.log('📦 Incoming Payload:', req.body);
+    const { restaurantId, items, totalAmount, deliveryAddress , location , customerId} = req.body;
+    // const customerId = req.user._id; // From JWT middleware
 
     const order = new Order({
       customerId,
@@ -19,6 +21,7 @@ export const placeOrder = async (req, res) => {
     await order.save();
     res.status(201).json({ message: 'Order placed successfully', order });
   } catch (err) {
+    console.error('❌ Error inside placeOrder:', err);
     res.status(500).json({ message: err.message });
   }
 };

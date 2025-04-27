@@ -7,14 +7,17 @@ import useAuthStore from '../store/authStore';
 import Input from '../app/ui/Input';
 import Button from '../app/ui/Button';
 import { StripeProvider } from '@stripe/stripe-react-native';
+import * as SplashScreen from 'expo-splash-screen'; // 👈 import
 
-
+// 👇 prevent auto-hiding splash before app is ready
+SplashScreen.preventAutoHideAsync();
 
 export default function LoginScreen() {
   const { login, user } = useAuthStore();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [appReady, setAppReady] = useState(false); // 👈 new state
 
   const [formData, setFormData] = useState({
     phone: '',
@@ -22,8 +25,19 @@ export default function LoginScreen() {
   });
 
   useEffect(() => {
+    // ⏳ simulate loading delay or preload fonts here
+    const prepare = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 500)); // simulate delay
+      setAppReady(true);
+      SplashScreen.hideAsync(); // 👈 hide splash manually
+    };
+
+    prepare();
+  }, []);
+
+  useEffect(() => {
     if (user?.role === 'customer') {
-      router.replace('/dashboard/customer');
+      router.replace('/home');
     } else if (user?.role === 'restaurant') {
       router.replace('/dashboard/restaurant');
     } else if (user?.role === 'admin') {
@@ -33,26 +47,22 @@ export default function LoginScreen() {
 
   const validateForm = () => {
     const newErrors = {};
-    
     if (!formData.phone) {
       newErrors.phone = 'Phone number is required';
     } else if (!/^\+?[\d\s-]{10,}$/.test(formData.phone)) {
       newErrors.phone = 'Please enter a valid phone number';
     }
-    
     if (!formData.password) {
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters';
     }
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleLogin = async () => {
     if (!validateForm()) return;
-    
     setIsLoading(true);
     try {
       const res = await axios.post('/auth/login', formData);
@@ -66,6 +76,8 @@ export default function LoginScreen() {
       setIsLoading(false);
     }
   };
+
+  if (!appReady) return null; // ⛔ Don't render UI until app is ready
 
   return (
     <StripeProvider publishableKey="pk_test_51REstHCtYURynd6PFDrmHpXkOCJrq2VLc8gYeL3VFjDO6wzblZ3Qr1Ur7D4RldEnoy4aobqQOMiFfrnR41U7VkI5000saCKGEG" >

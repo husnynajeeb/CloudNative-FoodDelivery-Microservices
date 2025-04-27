@@ -7,6 +7,7 @@ const useAuthStore = create((set) => ({
   login: async (token, user) => {
     await SecureStore.setItemAsync('token', token);
     set({ token, user });
+    console.log('User logged in:', user);
   },
   logout: async () => {
     await SecureStore.deleteItemAsync('token');

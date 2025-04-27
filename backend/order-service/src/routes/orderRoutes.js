@@ -12,19 +12,19 @@ import {
   getRestaurantOrderById,
   updateOrderStatusTemp
 } from '../controllers/orderController.js';
+import { verifyCustomer } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.post('/', placeOrder);
+router.get('/restaurants-with-menus', getRestaurantsWithMenus);
+
+router.post('/', verifyCustomer, placeOrder);
 router.patch('/:id/states', updateOrderStatus);
 router.get('/restaurant/:restaurantId/pending', getPendingOrders);
 router.get('/restaurant/:restaurantId/completed', getCompletedOrders);
 router.get('/:id', getOrderById); // get single order by ID
 router.delete('/:id/cancel', cancelOrder); // cancel order by ID
 router.patch('/:id/status', updateOrderStatusTemp );
-
-
-router.get('/restaurants-with-menus', getRestaurantsWithMenus);
 
 router.get('/restaurant/:restaurantId', getRestaurantOrders); // get all orders for a restaurant
 router.put('/:orderId/assign-driver', assignDriver);
