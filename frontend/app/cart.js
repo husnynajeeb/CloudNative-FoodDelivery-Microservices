@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   StyleSheet,
 } from "react-native";
+import { ArrowLeft } from 'lucide-react-native';
 import { useRouter } from "expo-router";
 import useCartStore from "../store/cartStore"; // ✅ Import Cart Store
 
@@ -15,7 +16,6 @@ export default function CartPage() {
     cartItems,
     incrementItem,
     decrementItem,
-    clearCart,
     restaurantName,
     restaurantId,
   } = useCartStore();
@@ -42,6 +42,14 @@ export default function CartPage() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={{ flex: 1 }}>
+        {/* Sticky Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <ArrowLeft size={24} color="#111" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Cart</Text>
+          <View style={{ width: 24 }} />
+        </View>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* 🏪 Restaurant Name */}
           <Text style={{ fontSize: 22, fontWeight: "bold", marginBottom: 20 }}>
@@ -106,6 +114,21 @@ export default function CartPage() {
 }
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    backgroundColor: "#fff",
+  },
+  headerTitle: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111",
+  },
   container: {
     flex: 1,
     backgroundColor: "#F5F5F5",

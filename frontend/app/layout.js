@@ -22,7 +22,7 @@ export default function Layout() {
       }}
     >
       <Tabs.Screen
-        name="Home"
+        name="home"
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <Home size={22} color={color} />,

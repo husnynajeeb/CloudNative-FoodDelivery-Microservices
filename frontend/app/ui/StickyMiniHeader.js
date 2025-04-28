@@ -1,7 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { X, Search } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import useCartStore from '../../store/cartStore';
 
 export default function StickyMiniHeader({ title }) {
   const router = useRouter();

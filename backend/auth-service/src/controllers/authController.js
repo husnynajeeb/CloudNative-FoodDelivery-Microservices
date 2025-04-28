@@ -184,4 +184,44 @@ export const getDriverById = async (req, res) => {
   }
 };
 
+export const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id; // ✅ From token (verifyCustomer middleware)
+
+    const { name, phone, email, address } = req.body;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { name, phone, email, address },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ message: 'Profile updated successfully', updatedUser });
+  } catch (err) {
+    console.error('❌ Error updating profile:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// ✅ Delete Profile
+export const deleteProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const deletedUser = await User.findByIdAndDelete(userId);
+
+    if (!deletedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ message: 'Profile deleted successfully' });
+  } catch (err) {
+    console.error('❌ Error deleting profile:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 
