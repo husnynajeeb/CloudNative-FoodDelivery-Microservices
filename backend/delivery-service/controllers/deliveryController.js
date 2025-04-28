@@ -1,7 +1,7 @@
 // backend/delivery-service/controllers/deliveryController.js
 import DeliveryProfile from '../models/DeliveryProfile.js';
 import axios from 'axios';
-
+import mongoose from "mongoose";
 
 export const createDriver = async (req, res) => {
   const { authDriverId, location } = req.body; // ⬅️ include location here!
@@ -29,14 +29,19 @@ export const createDriver = async (req, res) => {
   }
 };
 
-// Update driver's location not tested
+const { ObjectId } = mongoose.Types;
+
 export const updateLocation = async (req, res) => {
   const { coordinates } = req.body;
   const driverId = req.params.id;
 
+  console.log('updateLocation hit');
+  console.log('Body:', req.body);
+  console.log('Params:', req.params);
+
   try {
-    const driver = await DeliveryProfile.findByIdAndUpdate(
-      driverId,
+    const driver = await DeliveryProfile.findOneAndUpdate(
+      { authDriverId: new ObjectId(driverId) }, // cast string to ObjectId
       {
         currentLocation: {
           type: 'Point',
@@ -46,7 +51,11 @@ export const updateLocation = async (req, res) => {
       { new: true }
     );
 
-    // Emit to WebSocket
+    if (!driver) {
+      console.log('Driver not found for authDriverId:', driverId);
+      return res.status(404).json({ error: 'Driver not found' });
+    }
+
     req.io.emit('driverLocationUpdated', {
       driverId,
       coordinates,
@@ -54,6 +63,7 @@ export const updateLocation = async (req, res) => {
 
     res.json(driver);
   } catch (err) {
+    console.error('Error updating driver location:', err.message);
     res.status(400).json({ error: err.message });
   }
 };
@@ -83,6 +93,35 @@ export const updateDriverStatus = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
+
+export const updateStatusByAuthDriverId = async (req, res) => {
+  try {
+    const { authDriverId } = req.params;
+    const { status } = req.body;
+
+    // Validate status
+    if (!['available', 'busy', 'offline'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status value' });
+    }
+
+    // Find by authDriverId and update
+    const updatedProfile = await DeliveryProfile.findOneAndUpdate(
+      { authDriverId },
+      { status },
+      { new: true } // return updated doc
+    );
+
+    if (!updatedProfile) {
+      return res.status(404).json({ error: 'Delivery profile not found' });
+    }
+
+    res.json(updatedProfile);
+  } catch (err) {
+    console.error('Error updating status:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 
 
 export const getDriverById = async (req, res) => {
@@ -240,3 +279,42 @@ export const getAssignedOrder = async (req, res) => {
     res.status(500).json({ error: 'Server error while fetching assigned order' });
   }
 };
+
+
+export const getAllDrivers = async (req, res) => {
+  try {
+    const drivers = await DeliveryProfile.find();
+    res.status(200).json(drivers);
+  } catch (err) {
+    console.error('Error fetching drivers:', err.message);
+    res.status(500).json({ error: 'Failed to retrieve drivers' });
+  }
+};
+
+
+// In your delivery service controller, e.g. getDriverById:
+
+// Example Mongoose controller for delivery service
+export const getDriverByAuthId = async (req, res) => {
+  try {
+    const authDriverId = req.params.id;
+    console.log('Received authDriverId:', authDriverId);
+
+    const driver = await DeliveryProfile.findOne({ authDriverId });
+
+    if (!driver) {
+      console.log('Driver not found for authDriverId:', authDriverId);
+      return res.status(404).json({ error: 'Driver not found' });
+    }
+
+    console.log('Driver found:', driver);
+    res.status(200).json(driver);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
+
+

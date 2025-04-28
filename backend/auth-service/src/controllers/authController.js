@@ -5,7 +5,7 @@ import Driver from "../models/Driver.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import axios from "axios";
-
+import { geocodeAddress } from '../../../order-service/geocode.js'; // Assume you put the above function here
 
 export const registerCustomer = async (req, res) => {
   try {
@@ -27,18 +27,44 @@ export const registerCustomer = async (req, res) => {
   }
 };
 
+
 export const registerRestaurant = async (req, res) => {
   try {
-    const { businessName, address, phone, email, password , location} = req.body;
+    const { businessName, address, phone, email, password } = req.body;
     const role = "restaurant";
 
     const exists = await Restaurant.findOne({ businessName });
     if (exists)
-      return res.status(409).json({ message: "User already in use" });
+      return res.status(409).json({ message: "Business name already in use" });
+
+    // Ensure country is always Sri Lanka
+    const fullAddress = `${address.street}, ${address.city}, Sri Lanka`;
+
+    // Geocode the address
+    const coordinates = await geocodeAddress(fullAddress);
+
+    if (!coordinates) {
+      return res.status(400).json({ message: 'Unable to geocode the provided address' });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const restaurant = new Restaurant({ businessName, address, phone, email, password: hashedPassword, role , location });
+    const restaurant = new Restaurant({
+      businessName,
+      address: {
+        ...address,
+        country: 'Sri Lanka',
+      },
+      phone,
+      email,
+      password: hashedPassword,
+      role,
+      location: {
+        type: 'Point',
+        coordinates, // [lng, lat]
+      }
+    });
+
     await restaurant.save();
 
     res.status(201).json({ message: "Restaurant registered successfully" });
@@ -46,6 +72,7 @@ export const registerRestaurant = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 export const registerAdmin = async (req, res) => {
   try {
@@ -74,7 +101,9 @@ export const login = async (req, res) => {
 
   // Try to login using phone (for customer)
   if (phone) {
-    user = await Customer.findOne({ phone }) || await Driver.findOne({ phone });
+    user = await Customer.findOne({ phone }) 
+        || await Driver.findOne({ phone }) 
+        || await Restaurant.findOne({ phone }); // 👉 added Restaurant check here
   }
 
   // Try restaurant login using businessName
@@ -92,7 +121,7 @@ export const login = async (req, res) => {
   if (!match) return res.status(401).json({ message: 'Invalid credentials' });
 
   const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-    expiresIn: '1d'
+    expiresIn: '7d'
   });
 
   res.json({
