@@ -2,7 +2,16 @@ import jwt from 'jsonwebtoken';
 import { verifyDriver } from "../controllers/deliveryController.js";
 
 const protect = async (req, res, next) => {
+
   try {
+    // 🔥 ADD: Check for internal-call shortcut
+    if (req.headers['internal-call'] === 'true') {
+      console.log('🛡️ Skipping auth for internal internal-call');
+      req.user = { role: 'internal' }; // You can set a fake user if needed
+      return next();
+    }
+
+
     // Check if authorization header exists
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {

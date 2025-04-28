@@ -14,7 +14,6 @@ export default function CheckoutPage() {
 
   const [street, setStreet] = useState('');
   const [city, setCity] = useState('');
-  const [zip, setZip] = useState('');
 
   const subtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
   const deliveryFee = 99;
@@ -22,7 +21,7 @@ export default function CheckoutPage() {
   const total = subtotal + deliveryFee + serviceFee;
 
   const placeOrder = async () => {
-    if (!street || !city || !zip) {
+    if (!street || !city) {
       alert('Please fill address details');
       return;
     }
@@ -38,10 +37,10 @@ export default function CheckoutPage() {
           quantity: item.quantity,
         })),
         totalAmount: subtotal,
-        deliveryAddress: { street, city, zip },
-        location: {
-          type: "Point",
-          coordinates: [79.8612, 6.9271] // Later replace with GPS
+        deliveryAddress: {
+          street,
+          city,
+          country: 'Sri Lanka'      // explicitly add country as backend expects it
         }
       };
 
@@ -84,8 +83,8 @@ export default function CheckoutPage() {
           </View>
         ))}
 
-        {/* Address Form */}
-        <View style={styles.form}>
+         {/* Address Form */}
+         <View style={styles.form}>
           <Text style={styles.addressTitle}>Delivery Address</Text>
 
           <TextInput
@@ -100,14 +99,8 @@ export default function CheckoutPage() {
             onChangeText={setCity}
             style={styles.input}
           />
-          <TextInput
-            placeholder="Zip Code"
-            value={zip}
-            onChangeText={setZip}
-            style={styles.input}
-            keyboardType="number-pad"
-          />
         </View>
+
 
         {/* Order Summary */}
         <View style={styles.summary}>

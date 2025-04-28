@@ -1,27 +1,58 @@
 import Order from '../models/Order.js';
 import axios from 'axios';
+import { geocodeAddress } from '../../geocode.js'; // Assume you put the above function here
 
-// ✅ Place new order
 export const placeOrder = async (req, res) => {
   try {
     console.log('📦 Incoming Payload:', req.body);
-    const { restaurantId, items, totalAmount, deliveryAddress , location , customerId} = req.body;
-    // const customerId = req.user._id; // From JWT middleware
 
+    const { restaurantId, items, totalAmount, deliveryAddress, customerId } = req.body;
+
+    console.log('customerId:', customerId);
+    console.log('restaurantId:', restaurantId);
+    console.log('items:', items);
+    console.log('totalAmount:', totalAmount);
+    console.log('deliveryAddress:', deliveryAddress);
+
+    // Construct full address string
+    const fullAddress = `${deliveryAddress.street}, ${deliveryAddress.city}, ${deliveryAddress.country}`;
+    console.log('Full address:', fullAddress);
+
+    // Get coordinates from geocode function
+    const coordinates = await geocodeAddress(fullAddress);
+    console.log('Coordinates from geocode:', coordinates);
+
+    // Validate coordinates array
+    if (!coordinates || !Array.isArray(coordinates) || coordinates.length !== 2) {
+      return res.status(400).json({ message: 'Invalid coordinates received from geocode' });
+    }
+
+    // Create new order document
     const order = new Order({
       customerId,
       restaurantId,
       items,
       totalAmount,
       deliveryAddress,
-      location
-       
+      location: {
+        type: 'Point',
+        coordinates, // [lng, lat]
+      },
     });
 
-    await order.save();
+    // Try saving order and catch validation errors
+    try {
+      await order.save();
+      console.log('✅ Order saved successfully');
+    } catch (saveErr) {
+      console.error('❌ Validation error during order.save():', saveErr);
+      return res.status(400).json({ message: saveErr.message });
+    }
+
+    // Respond with success
     res.status(201).json({ message: 'Order placed successfully', order });
   } catch (err) {
-    console.error('❌ Error inside placeOrder:', err);
+    console.error('❌ Unexpected error inside placeOrder:', err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -108,13 +139,13 @@ export const getRestaurantOrders = async (req, res) => {
 export const getRestaurantsWithMenus = async (req, res) => {
   try {
     // Fetch all restaurants from auth-service
-    const authResponse = await axios.get('http://auth-service:5000/api/auth/restaurants');
+    const authResponse = await axios.get('http://localhost:5000/api/auth/restaurants');
     const restaurants = authResponse.data;
 
     // For each restaurant, fetch its menu from restaurant-service
     const enrichedRestaurants = await Promise.all(
       restaurants.map(async (restaurant) => {
-        const menuRes = await axios.get(`http://restaurant-service:5002/api/restaurant-menu/restaurant/${restaurant._id}`);
+        const menuRes = await axios.get(`http://localhost:5002/api/restaurant-menu/restaurant/${restaurant._id}`);
         return {
           ...restaurant,
           menu: menuRes.data
@@ -168,7 +199,7 @@ export const updateOrderStatus = async (req, res) => {
           },
           {
             headers: {
-              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4MDM4NDhhMmY4ZDc5NWYyNTdlOWIyMiIsInJvbGUiOiJkZWxpdmVyeSIsImlhdCI6MTc0NTE2Nzg4NiwiZXhwIjoxNzQ1NzcyNjg2fQ.N4t4zT5zwbZz0PDGSL-n0tZVHa7y9tE_qG2VlSOgg0o`
+              'internal-call': 'true'  // 🔥 add this
             }
           }
         );
@@ -240,7 +271,7 @@ export const getRestaurantOrderById = async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    const RestaurantInfo = await axios.get(`http://192.168.1.3:5000/api/auth/Restaurants/${order.restaurantId}`)
+    const RestaurantInfo = await axios.get(`http://localhost:5000/api/auth/Restaurants/${order.restaurantId}`)
 
     res.status(200).json({
       status: 200,
@@ -282,4 +313,99 @@ export const updateOrderStatusTemp = async (req, res) => {
     { new: true }
   );
   res.json(updated);
+};
+;
+
+export const getOrderTracking = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    // 1. Get the order without populate
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    // 2. Get restaurant location from restaurant microservice
+    const restaurantRes = await axios.get(`http://localhost:5000/api/auth/Restaurants/${order.restaurantId}`);
+    const restaurant = restaurantRes.data;
+
+    // 3. Get driver info from delivery microservice
+    let driverLocation = null;
+    if (order.driverId) {
+      try {
+        const driverRes = await axios.get(`http://localhost:5003/api/delivery/authdriver/${order.driverId}`);
+        const driver = driverRes.data;
+        if (driver.location && driver.location.coordinates) {
+          driverLocation = {
+            latitude: driver.location.coordinates[1],
+            longitude: driver.location.coordinates[0],
+          };
+        }
+      } catch (err) {
+        console.warn('Warning: Could not fetch driver info from delivery service', err.message);
+      }
+    }
+
+    // 4. Send back aggregated response
+    res.json({
+      customerLocation: {
+        latitude: order.location.coordinates[1],
+        longitude: order.location.coordinates[0],
+      },
+      restaurantLocation: {
+        latitude: restaurant.location.coordinates[1],
+        longitude: restaurant.location.coordinates[0],
+      },
+      driverLocation, // structured with lat, lng or null
+      driverId: order.driverId,
+      status: order.status,
+      orderLocation: {
+        latitude: order.location.coordinates[1],
+        longitude: order.location.coordinates[0],
+      }, // <-- 🔥 ADD THIS
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
+// ✅ Get active order for a specific customer
+export const getActiveOrderForCustomer = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    const activeStatuses = ['pending', 'accepted', 'preparing', 'dispatched'];
+
+    const order = await Order.findOne({
+      customerId,
+      status: { $in: activeStatuses }
+    })
+    .sort({ createdAt: -1 }); // latest active order
+
+    if (!order) {
+      return res.status(404).json({ message: 'No active orders found for this customer' });
+    }
+
+    // Optional: Fetch driver details from delivery microservice if driver is assigned
+    let driverInfo = null;
+    if (order.driverId) {
+      try {
+        const driverRes = await axios.get(`http://localhost:5003/api/delivery/authdriver/${order.driverId}`);
+        driverInfo = driverRes.data;
+      } catch (err) {
+        console.warn('Driver info fetch failed:', err.message);
+      }
+    }
+
+    res.status(200).json({
+      message: 'Active order found',
+      order,
+      driver: driverInfo
+    });
+  } catch (err) {
+    console.error('Error fetching active order:', err.message);
+    res.status(500).json({ error: 'Server error while retrieving active order' });
+  }
 };
