@@ -5,11 +5,29 @@ import axios from '../lib/axiosInstance';
 
 export default function RegisterRestaurant() {
   const router = useRouter();
-  const [form, setForm] = useState({ businessName: '', phone: '', address: '', email: '', password: '' });
+  const [form, setForm] = useState({
+    businessName: '',
+    phone: '',
+    street: '',
+    city: '',
+    email: '',
+    password: ''
+  });
 
   const handleRegister = async () => {
     try {
-      await axios.post('/auth/register/restaurant', form);
+      const payload = {
+        businessName: form.businessName,
+        phone: form.phone,
+        email: form.email,
+        password: form.password,
+        address: {
+          street: form.street,
+          city: form.city
+        }
+      };
+
+      await axios.post('/auth/register/restaurant', payload);
       alert('Registered successfully');
       router.replace('/');
     } catch (err) {
@@ -20,7 +38,7 @@ export default function RegisterRestaurant() {
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Register as Restaurant</Text>
-      {['businessName', 'phone', 'address', 'email', 'password'].map((field) => (
+      {['businessName', 'phone', 'street', 'city', 'email', 'password'].map((field) => (
         <TextInput
           key={field}
           placeholder={field.charAt(0).toUpperCase() + field.slice(1)}

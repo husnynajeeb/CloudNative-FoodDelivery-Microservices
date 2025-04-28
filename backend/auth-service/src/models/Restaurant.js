@@ -3,10 +3,10 @@ import mongoose from 'mongoose';
 const restaurantSchema = new mongoose.Schema({
   businessName: { type: String, required: true, unique: true },
   address: {
-   street: { type: String },
-  city: { type: String },
-  country: { type: String, default: "Sri Lanka" }
-},
+    street: { type: String },
+    city: { type: String },
+    country: { type: String, default: "Sri Lanka" },
+  },
   phone: { type: String, required: true, unique: true },
   email: { type: String, unique: true },
   password: { type: String, required: true },
