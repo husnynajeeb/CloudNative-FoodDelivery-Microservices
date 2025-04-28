@@ -28,17 +28,6 @@ export default function EditProfilePage() {
     }
   };
 
-  const handleDelete = async () => {
-    try {
-      await axios.delete('/auth/delete-profile'); // ✅ Delete profile
-      logout(); // ✅ Clear token and user from store
-      router.replace('/'); // ✅ Redirect to login page
-    } catch (err) {
-      console.error('❌ Failed to delete profile:', err.message);
-      alert('Failed to delete account');
-    }
-  };  
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
       <ScrollView contentContainerStyle={styles.container}>
