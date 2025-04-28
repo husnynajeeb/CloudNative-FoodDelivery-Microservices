@@ -78,18 +78,18 @@ const PaymentScreen = () => {
         Alert.alert('Error', 'Please select a payment method');
         return;
       }
-      
+  
       setIsLoading(true);
-      console.log(userData.email,userData.phone)
-      
+      console.log(userData.email, userData.phone);
+  
       // 1. Create payment intent
       const response = await axios.post(`${API_URL}/payments/initiate`, {
         amount: orderDetails.total,
         currency: orderDetails.currency.toLowerCase(),
-        customerEmail:  userData.email,
-        customerPhone:  userData.phone
+        customerEmail: userData.email,
+        customerPhone: userData.phone
       });
-
+  
       // 2. Initialize payment sheet
       const { error } = await initPaymentSheet({
         merchantDisplayName: 'My Food App',
@@ -97,16 +97,16 @@ const PaymentScreen = () => {
         returnURL: 'myfoodapp://stripe-redirect',
         defaultBillingDetails: { name: 'Customer Name' }
       });
-
+  
       if (error) {
         setIsLoading(false);
         Alert.alert('Error', error.message);
         return;
       }
-
+  
       // 3. Present payment sheet
       const { error: paymentError } = await presentPaymentSheet();
-      
+  
       if (paymentError) {
         setIsLoading(false);
         if (paymentError.code !== 'Canceled') {
@@ -114,13 +114,13 @@ const PaymentScreen = () => {
         }
         return;
       }
-      console.log(response.data.paymentIntentId)
-      // 4. Confirm payment and send notifications
+  
+      // ✅ Webhook handles this now — no need to confirm manually
+      /*
       const confirmResponse = await axios.post(`${API_URL}/payments/confirm`, {
         paymentIntentId: response.data.paymentIntentId
-        
       });
-
+  
       if (confirmResponse.data.success) {
         setIsPaymentComplete(true);
         runOnJS(showSuccessAnimation)(() => {
@@ -132,13 +132,21 @@ const PaymentScreen = () => {
         Alert.alert('Error', 'Payment confirmation failed');
         setIsLoading(false);
       }
-      
+      */
+  
+      // ✅ TEMP success screen — wait for webhook to handle real logic
+      setIsPaymentComplete(true);
+      runOnJS(showSuccessAnimation)(() => {
+        navigation.navigate('OrderConfirmation');
+      });
+  
     } catch (error) {
       setIsLoading(false);
       console.error('Payment error:', error);
       Alert.alert('Error', error.response?.data?.error || error.message || 'Payment failed');
     }
   };
+  
 
   return (
     <View style={styles.container}>

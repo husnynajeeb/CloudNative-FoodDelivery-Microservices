@@ -65,7 +65,7 @@ export const initiatePayment = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
+/*
 // Confirm Payment and Send Notifications
 export const confirmPayment = async (req, res) => {
   try {
@@ -143,7 +143,7 @@ export const confirmPayment = async (req, res) => {
     console.error("Payment confirmation error:", err);
     res.status(500).json({ error: err.message });
   }
-};
+};*/
 
 // Get Payment Status
 export const getPaymentStatus = async (req, res) => {
@@ -177,47 +177,74 @@ export const handleWebhook = async (req, res) => {
   let event;
 
   try {
+    console.log("hi")
     event = stripe.webhooks.constructEvent(
       req.body,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
+    console.error("⚠️ Webhook signature verification failed:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Handle real payment success
+  // Handle the event type
+  console.log("hello")
   if (event.type === 'payment_intent.succeeded') {
     const paymentIntent = event.data.object;
-    
-    // 1. Update database
-    const payment = await Payment.findOneAndUpdate(
-      { paymentIntentId: paymentIntent.id },
-      { status: 'success' },
-      { new: true }
-    );
 
-    // 2. Send notifications
-    if (payment) {
-      // SMS via Twilio
-      if (payment.customerPhone) {
-        await twilioClient.messages.create({
-          body: `Payment of ${paymentIntent.amount/100}${paymentIntent.currency.toUpperCase()} received! Order #${payment._id}`,
-          from: process.env.TWILIO_NUMBER,
-          to: payment.customerPhone
-        });
+    try {
+      console.log("here")
+      // 1. Update database
+      const payment = await Payment.findOneAndUpdate(
+        { paymentIntentId: paymentIntent.id },
+        { status: 'success' },
+        { new: true }
+      );
+
+      if (payment) {
+        console.log("there")
+        const notificationResults = {};
+
+        // 2. Send SMS
+        if (payment.phone) {
+          try {
+            notificationResults.sms = await client.messages.create({
+              body: `Your payment of ${paymentIntent.amount / 100} ${paymentIntent.currency.toUpperCase()} was successful!`,
+              from: process.env.TWILIO_PHONE,
+              to: payment.phone
+            });
+          } catch (smsErr) {
+            console.error("SMS failed:", smsErr);
+            notificationResults.smsError = smsErr.message;
+          }
+        }
+
+        // 3. Send Email
+        if (payment.email) {
+          try {
+            notificationResults.email = await transporter.sendMail({
+              from: `"My Store" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+              to: payment.email,
+              subject: 'Payment Confirmation',
+              html: `
+                <h1>Thank you for your payment!</h1>
+                <p>You’ve successfully paid ${paymentIntent.amount / 100} ${paymentIntent.currency.toUpperCase()}.</p>
+                <p>Your transaction has been completed.</p>
+                <p>Thank you. Please use our service again.</p>
+              `
+            });
+          } catch (emailErr) {
+            console.error("Email failed:", emailErr);
+            notificationResults.emailError = emailErr.message;
+          }
+        }
+
+        console.log("✅ Payment handled and notifications sent:", notificationResults);
       }
 
-      // Email via Nodemailer
-      if (payment.email) {
-        await transporter.sendMail({
-          from: process.env.EMAIL_FROM,
-          to: payment.email,
-          subject: 'Payment Confirmation',
-          html: `<h1>Thank you for your payment!</h1>
-                 <p>Amount: ${paymentIntent.amount/100}${paymentIntent.currency.toUpperCase()}</p>`
-        });
-      }
+    } catch (err) {
+      console.error("Webhook DB or Notification error:", err);
     }
   }
 
