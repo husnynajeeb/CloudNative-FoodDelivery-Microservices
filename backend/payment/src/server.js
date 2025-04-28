@@ -10,8 +10,10 @@ import cors from "cors";
 // NOTE: make sure paymentRoutes.js uses `export` not `module.exports`
 import paymentRoutes from "./Routes/paymentRoutes.js"; 
 
-
 const app = express();
+
+// 👇 Use raw body ONLY for the webhook route
+app.use('/payments/webhook', express.raw({ type: 'application/json' }));
 
 //MiddleWare
 app.use(express.json());
@@ -25,15 +27,9 @@ app.use(
   })
 );
 
-
-
-
 app.use('/payments', paymentRoutes);
 
-
-
 // Read user ID from the cookie
-
 const PORT = process.env.PORT || 5000;
 mongoose
   .connect(process.env.MONGO_URL)
