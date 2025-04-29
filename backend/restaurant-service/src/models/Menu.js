@@ -4,7 +4,7 @@ const menuItemSchema = new mongoose.Schema({
   restaurantId: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
-    ref: 'Restaurant' // Assuming you store restaurant records here or from auth-db
+    ref: 'Restaurant'
   },
   name: {
     type: String,
@@ -23,6 +23,9 @@ const menuItemSchema = new mongoose.Schema({
   isAvailable: {
     type: Boolean,
     default: true
+  },
+  image: {
+    type: String // Stores path like '/uploads/filename.jpg'
   }
 }, { timestamps: true });
 

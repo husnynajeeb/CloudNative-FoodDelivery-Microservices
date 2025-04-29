@@ -39,7 +39,7 @@ export default function LoginScreen() {
     if (user?.role === 'customer') {
       router.replace('/home');
     } else if (user?.role === 'restaurant') {
-      router.replace('/dashboard/restaurant');
+      router.replace('/dashboard/restaurantDash');
     } else if (user?.role === 'admin') {
       router.replace('/dashboard/admin');
     }
