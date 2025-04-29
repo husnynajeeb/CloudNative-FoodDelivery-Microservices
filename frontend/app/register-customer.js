@@ -23,7 +23,7 @@ import KeyboardAvoidingWrapper from '../app/ui/KeyboardAvoidingWrapper';
 import { SplashScreen } from 'expo-router';
 
 // Prevent splash screen from auto-hiding
-SplashScreen.preventAutoHideAsync();
+//SplashScreen.preventAutoHideAsync();
 
 export default function RegisterCustomer() {
   const router = useRouter();

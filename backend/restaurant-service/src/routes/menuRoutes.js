@@ -4,7 +4,8 @@ import {
   getMyMenuItems,
   updateMenuItem,
   deleteMenuItem,
-  getMenuByRestaurantId
+  getMenuByRestaurantId,
+  getMenuItem
 } from '../controllers/menuController.js';
 import { getPendingOrders } from '../controllers/orderController.js';
 import { verifyRestaurant } from '../middleware/auth.js';
@@ -16,6 +17,7 @@ router.post('/', verifyRestaurant, createMenuItem);
 router.get('/me', verifyRestaurant, getMyMenuItems);
 router.patch('/:id', verifyRestaurant, updateMenuItem);
 router.delete('/:id', verifyRestaurant, deleteMenuItem);
+router.get('/:id', verifyRestaurant, getMenuItem);
 
 // 🌐 Public Route – for customers
 router.get('/restaurant/:restaurantId', getMenuByRestaurantId);

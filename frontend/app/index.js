@@ -55,7 +55,7 @@ export default function LoginScreen() {
     
     setIsLoading(true);
     try {
-      const res = await axios.post('/auth/login', formData);
+      const res = await axios.post('http://192.168.43.178:5000/api/auth/login', formData);
       const { token, user } = res.data;
       await login(token, user);
     } catch (err) {

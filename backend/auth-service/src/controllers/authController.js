@@ -26,7 +26,7 @@ export const registerCustomer = async (req, res) => {
 
 export const registerRestaurant = async (req, res) => {
   try {
-    const { businessName, address, phone, email, password} = req.body;
+    const { businessName, address, phone, email, password,image} = req.body;
     const role = "restaurant";
 
     const exists = await Restaurant.findOne({ businessName });
@@ -35,7 +35,7 @@ export const registerRestaurant = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const restaurant = new Restaurant({ businessName, address, phone, email, password: hashedPassword, role });
+    const restaurant = new Restaurant({ businessName, address, phone, email, password: hashedPassword, role,image });
     await restaurant.save();
 
     res.status(201).json({ message: "Restaurant registered successfully" });
@@ -75,8 +75,8 @@ export const login = async (req, res) => {
   }
 
   // Try restaurant login using businessName
-  if (!user && businessName) {
-    user = await Restaurant.findOne({ businessName });
+  if (!user && phone) {
+    user = await Restaurant.findOne({ phone });
   }
 
   if (!user && email) {

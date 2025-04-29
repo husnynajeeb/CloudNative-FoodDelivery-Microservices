@@ -80,3 +80,16 @@ export const deleteMenuItem = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+// New route: Get a single menu item by ID
+export const getMenuItem = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const item = await MenuItem.findOne({ _id: id, restaurantId: req.user.id });
+    if (!item) {
+      return res.status(404).json({ message: 'Menu item not found' });
+    }
+    res.json(item);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
