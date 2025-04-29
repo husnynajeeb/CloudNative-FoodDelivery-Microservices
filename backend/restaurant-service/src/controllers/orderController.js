@@ -4,7 +4,7 @@ export const getPendingOrders = async (req, res) => {
   const restaurantId = req.user.id; // From token
 
   try {
-    const response = await axios.get(`http://localhost:5001/api/orders/restaurant/${restaurantId}`);
+    const response = await axios.get(`http://order-service:5001/api/orders/restaurant/${restaurantId}`);
     res.json(response.data);
 } catch (err) {
     console.error('🔴 Failed to fetch orders for restaurant:', {

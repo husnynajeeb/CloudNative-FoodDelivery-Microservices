@@ -5,144 +5,193 @@ import {
   StyleSheet,
   SafeAreaView,
   ScrollView,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
-import useAuthStore from "../store/authStore"; // Your auth store
-import { Pencil } from "lucide-react-native"; // ✏️ Edit Icon
+import { LogOut, Edit2 } from "lucide-react-native";
+import useAuthStore from "../store/authStore"; // ✅ Your login state
 
 export default function ProfilePage() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
 
-  const handleDelete = async () => {
-    try {
-      await axios.delete('/auth/delete-profile'); // ✅ Delete profile
-      logout(); // ✅ Clear token and user from store
-      router.replace('/'); // ✅ Redirect to login page
-    } catch (err) {
-      console.error('❌ Failed to delete profile:', err.message);
-      alert('Failed to delete account');
-    }
-  };  
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Confirm Delete",
+      "Are you sure you want to delete your account permanently?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            console.log("Deleting Account...");
+            logout();
+            router.replace("/");
+          },
+        },
+      ]
+    );
+  };
+
+  const handleEditProfile = () => {
+    router.push("/profile-edit"); // ✅ Navigate to profile-edit page
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
       <ScrollView contentContainerStyle={styles.container}>
-        {/* Heading */}
-        <View style={styles.headerRow}>
-          <Text style={styles.heading}>My Profile</Text>
-
-          {/* ✏️ Edit Button */}
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => router.push("/profile-edit")} // Create profile-edit page separately
-          >
-            <Pencil size={20} color="#3E64FF" />
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>My Profile</Text>
+          <TouchableOpacity onPress={handleEditProfile}>
+            <Edit2 size={22} color="#111" />
           </TouchableOpacity>
         </View>
 
-        {/* Info */}
-        <View style={styles.infoContainer}>
-          <Text style={styles.label}>Name</Text>
-          <Text style={styles.value}>{user?.name || "N/A"}</Text>
-
-          <Text style={styles.label}>Phone</Text>
-          <Text style={styles.value}>{user?.phone || "N/A"}</Text>
-
-          <Text style={styles.label}>Email</Text>
-          <Text style={styles.value}>{user?.email || "N/A"}</Text>
-
-          {user?.address && (
-            <>
-              <Text style={styles.label}>Address</Text>
-              <Text style={styles.value}>{user.address}</Text>
-            </>
-          )}
+        {/* Profile Picture Placeholder */}
+        <View style={styles.profileImage}>
+          <Text style={{ fontSize: 36, fontWeight: "bold", color: "#3E64FF" }}>
+            {user?.name?.charAt(0) || "U"}
+          </Text>
         </View>
 
-        {/* Actions */}
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => router.push("/orders")}
-        >
-          <Text style={styles.buttonText}>View My Orders</Text>
-        </TouchableOpacity>
+        {/* Welcome */}
+        <Text style={styles.welcomeText}>
+          Welcome, {user?.name || "User"} 👋
+        </Text>
 
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Text style={styles.deleteButtonText}>Delete Account</Text>
-        </TouchableOpacity>
+        {/* Profile Info */}
+        <View style={styles.infoCard}>
+          <InfoRow label="Name" value={user?.name} />
+          <InfoRow label="Email" value={user?.email} />
+          <InfoRow label="Phone" value={user?.phone} />
+        </View>
 
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: "#DC2626" }]}
-          onPress={() => {
-            logout();
-            router.replace("/index");
-          }}
-        >
-          <Text style={styles.buttonText}>Logout</Text>
-        </TouchableOpacity>
+        {/* Danger Zone */}
+        <View style={styles.dangerZone}>
+          <Text style={styles.dangerTitle}>Danger Zone</Text>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={handleDeleteAccount}
+          >
+            <Text style={styles.deleteButtonText}>Delete Account</Text>
+          </TouchableOpacity>
+        </View>
+        
+        {/* ✅ Log Out Button */}
+        <View>
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={() => {
+              logout();
+              router.replace("/");
+            }}
+          >
+            <Text style={styles.logoutButtonText}>Log Out</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+function InfoRow({ label, value }) {
+  return (
+    <View style={styles.infoRow}>
+      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.value}>{value || "-"}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    paddingBottom: 100,
+    padding: 24,
+    paddingBottom: 120,
   },
-  headerRow: {
+  header: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 30,
+    alignItems: "center",
+    marginBottom: 24,
   },
-  heading: {
-    fontSize: 24,
+  headerTitle: {
+    fontSize: 22,
     fontWeight: "700",
     color: "#111",
   },
-  editButton: {
-    backgroundColor: "#E0E7FF",
-    padding: 8,
+  profileImage: {
+    width: 100,
+    height: 100,
     borderRadius: 50,
+    backgroundColor: "#e0e7ff",
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "center",
+    marginBottom: 16,
   },
-  infoContainer: {
-    marginBottom: 40,
+  welcomeText: {
+    fontSize: 20,
+    textAlign: "center",
+    fontWeight: "600",
+    marginBottom: 24,
+  },
+  infoCard: {
+    backgroundColor: "#f9fafb",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 32,
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
   },
   label: {
     fontSize: 14,
-    color: "#666",
-    marginBottom: 4,
+    color: "#555",
   },
   value: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
     color: "#111",
-    marginBottom: 16,
   },
-  button: {
-    backgroundColor: "#3E64FF",
-    paddingVertical: 14,
-    borderRadius: 30,
-    alignItems: "center",
-    marginBottom: 20,
+  dangerZone: {
+    marginTop: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#f87171",
+    borderRadius: 12,
+    backgroundColor: "#fef2f2",
   },
-  buttonText: {
-    color: "#fff",
+  dangerTitle: {
     fontSize: 16,
     fontWeight: "700",
+    color: "#b91c1c",
+    marginBottom: 12,
   },
   deleteButton: {
-    backgroundColor: '#DC2626',
-    paddingVertical: 14,
-    borderRadius: 30,
-    alignItems: 'center',
-    marginTop: 20,
+    backgroundColor: "#ef4444",
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: "center",
   },
   deleteButtonText: {
-    color: '#fff',
+    color: "#fff",
+    fontWeight: "600",
     fontSize: 16,
-    fontWeight: '700',
+  },
+  logoutButton: {
+    backgroundColor: "#3E64FF",
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 16,
+  },
+  logoutButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 16,
   },
 });

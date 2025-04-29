@@ -5,7 +5,7 @@ import Driver from "../models/Driver.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import axios from "axios";
-import { geocodeAddress } from '../../../order-service/geocode.js'; // Assume you put the above function here
+// Assume you put the above function here
 
 export const registerCustomer = async (req, res) => {
   try {

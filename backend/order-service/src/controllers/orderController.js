@@ -139,13 +139,13 @@ export const getRestaurantOrders = async (req, res) => {
 export const getRestaurantsWithMenus = async (req, res) => {
   try {
     // Fetch all restaurants from auth-service
-    const authResponse = await axios.get('http://localhost:5000/api/auth/restaurants');
+    const authResponse = await axios.get('http://auth-service:5000/api/auth/restaurants');
     const restaurants = authResponse.data;
 
     // For each restaurant, fetch its menu from restaurant-service
     const enrichedRestaurants = await Promise.all(
       restaurants.map(async (restaurant) => {
-        const menuRes = await axios.get(`http://localhost:5002/api/restaurant-menu/restaurant/${restaurant._id}`);
+        const menuRes = await axios.get(`http://restaurant-service:5002/api/restaurant-menu/restaurant/${restaurant._id}`);
         return {
           ...restaurant,
           menu: menuRes.data
@@ -407,5 +407,21 @@ export const getActiveOrderForCustomer = async (req, res) => {
   } catch (err) {
     console.error('Error fetching active order:', err.message);
     res.status(500).json({ error: 'Server error while retrieving active order' });
+  }
+};
+
+export const getCompletedOrdersForCustomer = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    const completedOrders = await Order.find({
+      customerId,
+      status: 'delivered'
+    }).sort({ createdAt: -1 });
+
+    res.json(completedOrders);
+  } catch (err) {
+    console.error('Error fetching completed orders:', err.message);
+    res.status(500).json({ error: 'Server error while retrieving completed orders' });
   }
 };
