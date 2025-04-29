@@ -1,19 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { View, FlatList, StyleSheet, Text } from 'react-native';
-import RestaurantCard from '../app/ui/RestaurantCard';
-import axios from '../lib/axiosOrder';
-import { useRouter } from 'expo-router';
-
+import React, { useEffect, useState } from "react";
+import { View, FlatList, StyleSheet, Text } from "react-native";
+import RestaurantCard from "../app/ui/RestaurantCard";
+import axios from "../lib/axiosOrder";
+import { useRouter } from "expo-router";
 
 export default function HomeScreen() {
   const [restaurants, setRestaurants] = useState([]);
   const router = useRouter();
 
-
   useEffect(() => {
-    axios.get('/orders/restaurants-with-menus')
-      .then(res => setRestaurants(res.data))
-      .catch(err => console.error(err));
+    axios
+      .get("/orders/restaurants-with-menus")
+      .then((res) => setRestaurants(res.data))
+      .catch((err) => console.error(err));
   }, []);
 
   return (
@@ -26,15 +25,17 @@ export default function HomeScreen() {
           <RestaurantCard
             image="https://images.pexels.com/photos/958545/pexels-photo-958545.jpeg"
             name={item.businessName}
-            onPress={() => router.push({
-              pathname: `/restaurant/${item._id}`,
-              params: { name: item.businessName }
-            })}
-            
-
+            onPress={() =>
+              router.push({
+                pathname: `/restaurant/${item._id}`,
+                params: { name: item.businessName },
+              })
+            }
           />
         )}
-        ListEmptyComponent={<Text style={styles.empty}>No restaurants available</Text>}
+        ListEmptyComponent={
+          <Text style={styles.empty}>No restaurants available</Text>
+        }
       />
     </View>
   );
@@ -43,12 +44,12 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff'
+    backgroundColor: "#fff",
   },
   empty: {
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 50,
     fontSize: 16,
-    color: '#888'
-  }
+    color: "#888",
+  },
 });

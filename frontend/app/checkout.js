@@ -1,36 +1,47 @@
-import { View, Text, TouchableOpacity, TextInput, SafeAreaView, ScrollView, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
-import { ArrowLeft } from 'lucide-react-native';
-import useCartStore from '../store/cartStore';
-import useAuthStore from '../store/authStore';
-import axiosOrder from '../lib/axiosOrder'; // Axios instance for Order-service
-import { useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { ArrowLeft } from "lucide-react-native";
+import useCartStore from "../store/cartStore";
+import useAuthStore from "../store/authStore";
+import axiosOrder from "../lib/axiosOrder"; // Axios instance for Order-service
+import { useState } from "react";
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { cartItems, restaurantName, restaurantId, clearCart } = useCartStore();
   const { user } = useAuthStore(); // ✅ Get logged in user
-  console.log('user', user);
+  console.log("user", user);
 
-  const [street, setStreet] = useState('');
-  const [city, setCity] = useState('');
+  const [street, setStreet] = useState("");
+  const [city, setCity] = useState("");
 
-  const subtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
+  const subtotal = cartItems.reduce(
+    (total, item) => total + item.price * item.quantity,
+    0
+  );
   const deliveryFee = 99;
   const serviceFee = 125;
   const total = subtotal + deliveryFee + serviceFee;
 
   const placeOrder = async () => {
     if (!street || !city) {
-      alert('Please fill address details');
+      alert("Please fill address details");
       return;
     }
-    console.log('Placing order...',user?.id);
+    console.log("Placing order...", user?.id);
     try {
       const payload = {
         customerId: user?.id,
         restaurantId: restaurantId,
-        items: cartItems.map(item => ({
+        items: cartItems.map((item) => ({
           foodId: item._id,
           name: item.name,
           price: item.price,
@@ -40,25 +51,31 @@ export default function CheckoutPage() {
         deliveryAddress: {
           street,
           city,
-          country: 'Sri Lanka'      // explicitly add country as backend expects it
-        }
+          country: "Sri Lanka", // explicitly add country as backend expects it
+        },
       };
 
-      const res = await axiosOrder.post('/orders', payload);
+      const res = await axiosOrder.post("/orders", payload);
 
-      console.log('✅ Order Placed:', res.data);
+      console.log("✅ Order Placed:", res.data);
 
       clearCart();
-      router.replace('/home');
+      router.replace({
+        pathname: "/Screen/Payment/PaymentScreen",
+        params: {
+          deliveryFee: deliveryFee,
+          serviceFee: serviceFee,
+          subtotal: subtotal,
+        },
+      });
     } catch (err) {
-      console.error('❌ Failed to place order:', err.message);
-      alert('Order failed');
+      console.error("❌ Failed to place order:", err.message);
+      alert("Order failed");
     }
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-      
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
       {/* Sticky Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -76,15 +93,17 @@ export default function CheckoutPage() {
         </View>
 
         {/* Cart Items */}
-        {cartItems.map(item => (
+        {cartItems.map((item) => (
           <View key={item._id} style={styles.itemRow}>
             <Text style={styles.itemName}>{item.name}</Text>
-            <Text style={styles.itemPrice}>LKR {(item.price * item.quantity).toFixed(2)}</Text>
+            <Text style={styles.itemPrice}>
+              LKR {(item.price * item.quantity).toFixed(2)}
+            </Text>
           </View>
         ))}
 
-         {/* Address Form */}
-         <View style={styles.form}>
+        {/* Address Form */}
+        <View style={styles.form}>
           <Text style={styles.addressTitle}>Delivery Address</Text>
 
           <TextInput
@@ -100,7 +119,6 @@ export default function CheckoutPage() {
             style={styles.input}
           />
         </View>
-
 
         {/* Order Summary */}
         <View style={styles.summary}>
@@ -128,33 +146,29 @@ export default function CheckoutPage() {
 
       {/* Place Order Button */}
       <View style={styles.footer}>
-        <TouchableOpacity 
-          style={styles.placeOrderButton}
-          onPress={placeOrder}
-        >
+        <TouchableOpacity style={styles.placeOrderButton} onPress={placeOrder}>
           <Text style={styles.placeOrderButtonText}>Place Order</Text>
         </TouchableOpacity>
       </View>
-
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    backgroundColor: '#fff',
+    borderBottomColor: "#eee",
+    backgroundColor: "#fff",
   },
   headerTitle: {
     flex: 1,
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111',
+    fontWeight: "700",
+    color: "#111",
   },
   content: {
     padding: 20,
@@ -165,41 +179,41 @@ const styles = StyleSheet.create({
   },
   restaurantName: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#111',
+    fontWeight: "700",
+    color: "#111",
     marginBottom: 4,
   },
   itemsCount: {
-    color: '#555',
+    color: "#555",
     fontSize: 14,
   },
   itemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: "#eee",
     paddingBottom: 8,
   },
   itemName: {
     fontSize: 16,
-    color: '#111',
+    color: "#111",
   },
   itemPrice: {
     fontSize: 16,
-    color: '#111',
+    color: "#111",
   },
   form: {
     marginVertical: 24,
   },
   addressTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 12,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: "#ddd",
     padding: 12,
     borderRadius: 8,
     marginBottom: 12,
@@ -209,45 +223,45 @@ const styles = StyleSheet.create({
   },
   summaryTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 16,
   },
   summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 12,
   },
   totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: "#eee",
     paddingTop: 12,
   },
   totalText: {
-    fontWeight: '700',
+    fontWeight: "700",
     fontSize: 18,
   },
   footer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: "#eee",
   },
   placeOrderButton: {
-    backgroundColor: '#111',
+    backgroundColor: "#111",
     paddingVertical: 14,
     borderRadius: 30,
-    alignItems: 'center',
+    alignItems: "center",
   },
   placeOrderButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 });
