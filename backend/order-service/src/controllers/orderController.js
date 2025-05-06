@@ -378,7 +378,7 @@ export const getActiveOrderForCustomer = async (req, res) => {
 
     const activeStatuses = ['pending', 'accepted', 'preparing', 'dispatched'];
 
-    const order = await Order.findOne({
+    const order = await Order.find({
       customerId,
       status: { $in: activeStatuses }
     })
@@ -416,12 +416,34 @@ export const getCompletedOrdersForCustomer = async (req, res) => {
 
     const completedOrders = await Order.find({
       customerId,
-      status: 'delivered'
+      status: 'delivered',
     }).sort({ createdAt: -1 });
 
-    res.json(completedOrders);
+    // 🔁 Fetch restaurant names for each order
+    const enrichedOrders = await Promise.all(
+      completedOrders.map(async (order) => {
+        let restaurantName = 'Unknown';
+
+        try {
+          const response = await axios.get(
+            `http://auth-service:5000/api/auth/Restaurants/${order.restaurantId}`
+          );
+          console.log('Restaurant response:', response.data);
+          restaurantName = response.data?.businessName || 'Unknown';
+        } catch (err) {
+          console.warn(`⚠️ Failed to fetch restaurant ${order.restaurantId}:`, err.message);
+        }
+
+        return {
+          ...order.toObject(),
+          restaurantName,
+        };
+      })
+    );
+
+    res.json({ orders: enrichedOrders });
   } catch (err) {
-    console.error('Error fetching completed orders:', err.message);
+    console.error('❌ Error fetching completed orders:', err.message);
     res.status(500).json({ error: 'Server error while retrieving completed orders' });
   }
 };

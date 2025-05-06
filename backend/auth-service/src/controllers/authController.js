@@ -9,7 +9,7 @@ import axios from "axios";
 
 export const registerCustomer = async (req, res) => {
   try {
-    const { name, phone, address, email, password} = req.body;
+    const { name, phone, email, password} = req.body;
     const role = "customer";
 
     const exists = await Customer.findOne({ phone });
@@ -18,7 +18,7 @@ export const registerCustomer = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const customer = new Customer({ name, phone, address, email, password: hashedPassword, role });
+    const customer = new Customer({ name, phone, email, password: hashedPassword, role });
     await customer.save();
 
     res.status(201).json({ message: "Registered successfully" });
@@ -215,23 +215,45 @@ export const getDriverById = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const userId = req.user.id; // ✅ From token (verifyCustomer middleware)
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: 'Unauthorized – Invalid token' });
+    }
 
-    const { name, phone, email, address } = req.body;
+    const userId = req.user.id;
+    const { name, phone, email } = req.body;
 
-    const updatedUser = await User.findByIdAndUpdate(
+    const updatedCustomer = await Customer.findByIdAndUpdate(
       userId,
-      { name, phone, email, address },
+      { name, phone, email },
       { new: true }
     );
 
-    if (!updatedUser) {
+    if (!updatedCustomer) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.json({ message: 'Profile updated successfully', updatedUser });
+    // ✅ Include all updated fields in the new token payload
+    const token = jwt.sign(
+      {
+        id: updatedCustomer.id,
+        name: updatedCustomer.name,
+        email: updatedCustomer.email,
+        phone: updatedCustomer.phone,
+        role: updatedCustomer.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    console.log('🔑 New token generated:', token);
+
+    res.json({
+      message: 'Profile updated successfully',
+      token,
+      user: updatedCustomer,
+    });
   } catch (err) {
-    console.error('❌ Error updating profile:', err.message);
+    console.error('❌ Error updating profile:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -240,10 +262,11 @@ export const updateProfile = async (req, res) => {
 export const deleteProfile = async (req, res) => {
   try {
     const userId = req.user.id;
+    console.log('🔍 Deleting profile for user ID:', userId);
+    const deletedCustomer = await Customer.findByIdAndDelete(userId);
 
-    const deletedUser = await User.findByIdAndDelete(userId);
-
-    if (!deletedUser) {
+    if (!deletedCustomer) {
+      console.warn('🚫 User not found for deletion:', userId);
       return res.status(404).json({ message: 'User not found' });
     }
 

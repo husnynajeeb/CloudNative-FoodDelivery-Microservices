@@ -12,7 +12,7 @@ import {
   Poppins_500Medium as Poppins_Medium,
   Poppins_600SemiBold as Poppins_SemiBold,
 } from '@expo-google-fonts/poppins';
-import { ChevronLeft, User as UserIcon, Phone, Mail, Lock, Home } from 'lucide-react-native';
+import { ChevronLeft, User as UserIcon, Phone, Mail, Lock } from 'lucide-react-native';
 import axios from '../lib/axiosInstance';
 import theme from '../app/constants/theme';
 import FormInput from '../app/ui/Input';
@@ -29,14 +29,13 @@ export default function RegisterCustomer() {
   const router = useRouter();
   const [form, setForm] = useState({ 
     name: '', 
-    phone: '', 
-    address: '', 
+    phone: '',
     email: '', 
-    password: '' 
+    password: '',
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-  const totalSteps = 5;
+  const totalSteps = 4;
   
   // Font loading
   const [fontsLoaded, fontError] = useFonts({
@@ -67,7 +66,6 @@ export default function RegisterCustomer() {
     
     if (!form.name) newErrors.name = 'Name is required';
     if (!form.phone) newErrors.phone = 'Phone number is required';
-    if (!form.address) newErrors.address = 'Address is required';
     
     if (!form.email) {
       newErrors.email = 'Email is required';
@@ -90,12 +88,13 @@ export default function RegisterCustomer() {
     
     setIsLoading(true);
     try {
-      const response = await axios.post('/auth/register/customer', form);
+      await axios.post('/auth/register/customer', form);
       // Show success animation
       setIsLoading(false);
       router.replace('/');
     } catch (err) {
       setIsLoading(false);
+      console.error('❌ Registration failed:', err.message);
       const errorMessage = err.response?.data?.message || 'Registration failed. Please try again.';
       // Handle specific errors if provided by the backend
       if (err.response?.data?.errors) {
@@ -121,8 +120,6 @@ export default function RegisterCustomer() {
         return <UserIcon size={20} color={theme.colors.icon} />;
       case 'phone':
         return <Phone size={20} color={theme.colors.icon} />;
-      case 'address':
-        return <Home size={20} color={theme.colors.icon} />;
       case 'email':
         return <Mail size={20} color={theme.colors.icon} />;
       case 'password':
@@ -139,8 +136,6 @@ export default function RegisterCustomer() {
         return 'Full Name';
       case 'phone':
         return 'Phone Number';
-      case 'address':
-        return 'Delivery Address';
       case 'email':
         return 'Email Address';
       case 'password':
@@ -190,7 +185,6 @@ export default function RegisterCustomer() {
           <FormInput
             key={field}
             label={getFieldLabel(field)}
-            placeholder={`Enter your ${field}`}
             secureTextEntry={field === 'password'}
             value={form[field]}
             onChangeText={(value) => handleInputChange(field, value)}

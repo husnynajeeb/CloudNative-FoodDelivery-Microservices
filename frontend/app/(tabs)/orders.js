@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, SafeAreaView, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import useOrderStore from '../store/orderStore';
+import useOrderStore from '../../store/orderStore';
 import { useRouter } from 'expo-router';
 
 export default function OrdersPage() {
@@ -38,12 +38,14 @@ export default function OrdersPage() {
 
       <ScrollView style={{ padding: 16 }}>
         {activeTab === 'active' ? (
-          activeOrder ? (
-            <View style={styles.card}>
-              <Text style={styles.title}>{activeOrder.restaurantName || 'Restaurant'}</Text>
-              <Text>{activeOrder.status} • {activeOrder.items.length} items</Text>
-              <Text>Total: LKR {activeOrder.totalAmount.toFixed(2)}</Text>
-            </View>
+          activeOrder.length > 0 ? (
+            activeOrder.map(order => (
+              <View key={order._id} style={styles.card}>
+                <Text style={styles.title}>{order.restaurantName || 'Restaurant'}</Text>
+                <Text>{order.status} • {order.items.length} items</Text>
+                <Text>Total: LKR {order.totalAmount.toFixed(2)}</Text>
+              </View>
+            ))
           ) : (
             <Text style={styles.empty}>No active orders</Text>
           )

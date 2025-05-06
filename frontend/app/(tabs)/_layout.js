@@ -1,7 +1,23 @@
 import { Tabs } from 'expo-router/tabs';
 import { Home, ClipboardList, User, Bike } from 'lucide-react-native';
+import { useEffect } from 'react';
+import { useRouter } from 'expo-router';
+import useAuthStore from '../../store/authStore';
 
 export default function TabLayout() {
+  const { token } = useAuthStore(); // ✅ reactively track token
+  const router = useRouter();
+
+  useEffect(() => {
+    useAuthStore.getState().restoreSession();
+  }, []);
+
+  // ✅ Redirect to login (index.js) if user logs out or token is cleared
+  useEffect(() => {
+    if (!token) {
+      router.replace("/");
+    }
+  }, [token]);
   return (
     <Tabs
       screenOptions={{
