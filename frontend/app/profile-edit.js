@@ -1,141 +1,176 @@
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
-  ScrollView,
+  ActivityIndicator,
 } from "react-native";
-import { useState } from "react";
 import { useRouter } from "expo-router";
+import axios from "../lib/axiosInstance"; // ✅ Your axios instance
 import useAuthStore from "../store/authStore";
-import axios from "../lib/axiosInstance"; // Make sure you have this axios instance for Auth service
+import Toast from "react-native-toast-message"; // ✅ New import
+import { ArrowLeft } from "lucide-react-native";
 
-export default function EditProfilePage() {
+export default function ProfileEditPage() {
   const router = useRouter();
-  const { user, updateUser } = useAuthStore();
-
+  const { user, login } = useAuthStore(); // login() will update local user data after edit
   const [formData, setFormData] = useState({
-    name: user?.name || "",
-    phone: user?.phone || "",
-    email: user?.email || "",
-    address: user?.address || "",
+    name: "",
+    phone: "",
+    email: "",
   });
+  const [loading, setLoading] = useState(false);
 
-  const handleSave = async () => {
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || "",
+        phone: user.phone || "",
+        email: user.email || "",
+      });
+    }
+  }, [user]);
+
+  const handleUpdateProfile = async () => {
+    if (!formData.name || !formData.phone || !formData.email) {
+      Toast.show({
+        type: "error",
+        text1: "Please fill all fields",
+      });
+      return;
+    }
+  
     try {
-      const res = await axios.put(`/auth/update-profile`, formData); // Endpoint you must implement in auth backend
+      setLoading(true);
+  
+      const res = await axios.put(`/auth/update-profile`, formData);
       console.log("✅ Profile updated:", res.data);
-
-      updateUser(res.data.updatedUser); // Update local store
-      router.replace("/profile"); // Go back to profile
+  
+      const updatedToken = res.data.token;
+      const updatedUser = res.data.user;
+  
+      if (!updatedToken || !updatedUser) {
+        throw new Error("Missing updated token or user in response");
+      }
+  
+      // Save new token + updated user to auth store
+      await login(updatedToken, updatedUser);
+  
+      Toast.show({
+        type: "success",
+        text1: "Profile updated!",
+      });
+  
+      setTimeout(() => {
+        router.push("/profile");
+      }, 2000);
     } catch (err) {
-      console.error("❌ Failed to update profile:", err.message);
-      alert("Update failed");
+      console.error("❌ Failed updating profile:", err.message);
+  
+      Toast.show({
+        type: "error",
+        text1: "Update failed",
+        text2: err.response?.data?.message || err.message,
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#3E64FF" />
+      </View>
+    );
+  }
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.heading}>Edit Profile</Text>
+    <View style={styles.container}>
+      <TouchableOpacity
+        onPress={() => router.push("/profile")}
+        style={styles.backButton}
+      >
+        <ArrowLeft size={24} color="#111" />
+      </TouchableOpacity>
+      <Text style={styles.header}>Edit Profile</Text>
 
-        {/* Form Fields */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Full Name</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.name}
-            onChangeText={(text) => setFormData({ ...formData, name: text })}
-          />
+      <TextInput
+        placeholder="Name"
+        value={formData.name}
+        onChangeText={(text) => setFormData({ ...formData, name: text })}
+        style={styles.input}
+      />
 
-          <Text style={styles.label}>Phone Number</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.phone}
-            onChangeText={(text) => setFormData({ ...formData, phone: text })}
-            keyboardType="phone-pad"
-          />
+      <TextInput
+        placeholder="Phone"
+        value={formData.phone}
+        onChangeText={(text) => setFormData({ ...formData, phone: text })}
+        style={styles.input}
+        keyboardType="phone-pad"
+      />
 
-          <Text style={styles.label}>Email Address</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.email}
-            onChangeText={(text) => setFormData({ ...formData, email: text })}
-            keyboardType="email-address"
-          />
+      <TextInput
+        placeholder="Email"
+        value={formData.email}
+        onChangeText={(text) => setFormData({ ...formData, email: text })}
+        style={styles.input}
+        keyboardType="email-address"
+      />
 
-          <Text style={styles.label}>Address</Text>
-          <TextInput
-            style={styles.input}
-            value={formData.address}
-            onChangeText={(text) => setFormData({ ...formData, address: text })}
-          />
-        </View>
+      <TouchableOpacity
+        style={styles.updateButton}
+        onPress={handleUpdateProfile}
+      >
+        <Text style={styles.updateButtonText}>Save Changes</Text>
+      </TouchableOpacity>
 
-        {/* Actions */}
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>Save Changes</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.cancelButtonText}>Cancel</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
+      {/* Toast container */}
+      <Toast />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    paddingBottom: 100,
+    flex: 1,
+    backgroundColor: "#fff",
+    padding: 24,
   },
-  heading: {
+  header: {
     fontSize: 24,
     fontWeight: "700",
-    marginBottom: 30,
+    marginBottom: 24,
     textAlign: "center",
-    color: "#111",
-  },
-  inputContainer: {
-    marginBottom: 30,
-  },
-  label: {
-    fontSize: 14,
-    color: "#555",
-    marginBottom: 6,
   },
   input: {
-    backgroundColor: "#f1f5f9",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    backgroundColor: "#f9fafb",
     borderRadius: 8,
     padding: 12,
-    marginBottom: 20,
-    fontSize: 16,
-    color: "#111",
+    marginBottom: 16,
   },
-  saveButton: {
+  updateButton: {
     backgroundColor: "#3E64FF",
     paddingVertical: 14,
-    borderRadius: 30,
-    alignItems: "center",
-    marginBottom: 20,
+    borderRadius: 8,
+    marginTop: 8,
   },
-  saveButtonText: {
+  updateButtonText: {
+    textAlign: "center",
     color: "#fff",
+    fontWeight: "600",
     fontSize: 16,
-    fontWeight: "700",
   },
-  cancelButton: {
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
   },
-  cancelButtonText: {
-    color: "#DC2626",
-    fontSize: 16,
-    fontWeight: "600",
+  backButton: {
+    marginBottom: 12,
   },
 });

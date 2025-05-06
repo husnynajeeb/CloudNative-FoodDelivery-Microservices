@@ -1,14 +1,25 @@
 import jwt from 'jsonwebtoken';
 
 export const authMiddleware = (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ message: 'Token missing' });
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.warn('🚫 Token missing or malformed');
+    return res.status(401).json({ message: 'Token missing or malformed' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  console.log('🔑 Received token:', token);
 
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('✅ Decoded token:', decoded);
+
+    req.user = decoded; // { _id, role, name, ... }
     next();
-  } catch {
-    res.status(403).json({ message: 'Invalid token' });
+  } catch (err) {
+    console.error('❌ Token verification failed:', err.message);
+    res.status(403).json({ message: 'Invalid or expired token' });
   }
 };
 
@@ -29,3 +40,4 @@ export const deliveryOnly = (req, res, next) => {
   if (req.user.role !== 'delivery') return res.status(403).json({ message: 'Access denied' });
   next();
 };
+

@@ -5,11 +5,11 @@ import Driver from "../models/Driver.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import axios from "axios";
-import { geocodeAddress } from '../../../order-service/geocode.js'; // Assume you put the above function here
+// Assume you put the above function here
 
 export const registerCustomer = async (req, res) => {
   try {
-    const { name, phone, address, email, password} = req.body;
+    const { name, phone, email, password} = req.body;
     const role = "customer";
 
     const exists = await Customer.findOne({ phone });
@@ -18,7 +18,7 @@ export const registerCustomer = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const customer = new Customer({ name, phone, address, email, password: hashedPassword, role });
+    const customer = new Customer({ name, phone, email, password: hashedPassword, role });
     await customer.save();
 
     res.status(201).json({ message: "Registered successfully" });
@@ -99,11 +99,11 @@ export const login = async (req, res) => {
 
   let user = null;
 
-  // Try to login using phone (for customer, driver, or restaurant)
+  // Try to login using phone (for customer)
   if (phone) {
     user = await Customer.findOne({ phone }) 
         || await Driver.findOne({ phone }) 
-        || await Restaurant.findOne({ phone });
+        || await Restaurant.findOne({ phone }); // 👉 added Restaurant check here
   }
 
   // Try restaurant login using businessName
@@ -111,7 +111,6 @@ export const login = async (req, res) => {
     user = await Restaurant.findOne({ businessName });
   }
 
-  // Try admin login using email
   if (!user && email) {
     user = await Admin.findOne({ email });
   }
@@ -125,55 +124,18 @@ export const login = async (req, res) => {
     expiresIn: '7d'
   });
 
-  // Prepare user response based on role
-  let userResponse;
-  if (user.role === 'restaurant') {
-    userResponse = {
-      id: user._id,
-      businessName: user.businessName,
-      email: user.email ? user.email.trim() : undefined,
-      phone: user.phone,
-      address: user.address,
-      image: user.image,
-      role: user.role,
-      location: user.location
-    };
-  } else if (user.role === 'customer') {
-    userResponse = {
-      id: user._id,
-      name: user.name,
-      email: user.email ? user.email.trim() : undefined,
-      phone: user.phone,
-      address: user.address,
-      role: user.role
-    };
-  } else if (user.role === 'admin') {
-    userResponse = {
-      id: user._id,
-      name: user.name,
-      email: user.email ? user.email.trim() : undefined,
-      role: user.role
-    };
-  } else if (user.role === 'delivery') {
-    userResponse = {
-      id: user._id,
-      name: user.name,
-      email: user.email ? user.email.trim() : undefined,
-      phone: user.phone,
-      role: user.role,
-      vehicleType: user.vehicleType,
-      vehiclePlate: user.vehiclePlate,
-      address: user.address,
-      profilePicture: user.profilePicture,
-      location: user.location
-    };
-  }
-
   res.json({
     token,
-    user: userResponse
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role
+    }
   });
 };
+
 export const getAllRestaurants = async (req, res) => {
   try {
     const restaurants = await Restaurant.find().select('-password');
@@ -253,23 +215,45 @@ export const getDriverById = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const userId = req.user.id; // ✅ From token (verifyCustomer middleware)
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: 'Unauthorized – Invalid token' });
+    }
 
-    const { name, phone, email, address } = req.body;
+    const userId = req.user.id;
+    const { name, phone, email } = req.body;
 
-    const updatedUser = await User.findByIdAndUpdate(
+    const updatedCustomer = await Customer.findByIdAndUpdate(
       userId,
-      { name, phone, email, address },
+      { name, phone, email },
       { new: true }
     );
 
-    if (!updatedUser) {
+    if (!updatedCustomer) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.json({ message: 'Profile updated successfully', updatedUser });
+    // ✅ Include all updated fields in the new token payload
+    const token = jwt.sign(
+      {
+        id: updatedCustomer.id,
+        name: updatedCustomer.name,
+        email: updatedCustomer.email,
+        phone: updatedCustomer.phone,
+        role: updatedCustomer.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    console.log('🔑 New token generated:', token);
+
+    res.json({
+      message: 'Profile updated successfully',
+      token,
+      user: updatedCustomer,
+    });
   } catch (err) {
-    console.error('❌ Error updating profile:', err.message);
+    console.error('❌ Error updating profile:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -278,10 +262,11 @@ export const updateProfile = async (req, res) => {
 export const deleteProfile = async (req, res) => {
   try {
     const userId = req.user.id;
+    console.log('🔍 Deleting profile for user ID:', userId);
+    const deletedCustomer = await Customer.findByIdAndDelete(userId);
 
-    const deletedUser = await User.findByIdAndDelete(userId);
-
-    if (!deletedUser) {
+    if (!deletedCustomer) {
+      console.warn('🚫 User not found for deletion:', userId);
       return res.status(404).json({ message: 'User not found' });
     }
 

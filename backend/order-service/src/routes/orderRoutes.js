@@ -12,7 +12,8 @@ import {
   getRestaurantOrderById,
   updateOrderStatusTemp,
   getOrderTracking,
-  getActiveOrderForCustomer
+  getActiveOrderForCustomer,
+  getCompletedOrdersForCustomer,
 } from '../controllers/orderController.js';
 import { verifyCustomer } from '../middleware/auth.js';
 
@@ -37,6 +38,7 @@ router.post('/add', getRestaurantOrderById);
 
 router.get('/:orderId/tracking', getOrderTracking);
 router.get('/customer/:customerId/active', getActiveOrderForCustomer);
+router.get('/customer/:customerId/completed', getCompletedOrdersForCustomer);
 
 
 export default router;

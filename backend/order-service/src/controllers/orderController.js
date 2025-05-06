@@ -139,13 +139,13 @@ export const getRestaurantOrders = async (req, res) => {
 export const getRestaurantsWithMenus = async (req, res) => {
   try {
     // Fetch all restaurants from auth-service
-    const authResponse = await axios.get('http://localhost:5000/api/auth/restaurants');
+    const authResponse = await axios.get('http://auth-service:5000/api/auth/restaurants');
     const restaurants = authResponse.data;
 
     // For each restaurant, fetch its menu from restaurant-service
     const enrichedRestaurants = await Promise.all(
       restaurants.map(async (restaurant) => {
-        const menuRes = await axios.get(`http://localhost:5002/api/restaurant-menu/restaurant/${restaurant._id}`);
+        const menuRes = await axios.get(`http://restaurant-service:5002/api/restaurant-menu/restaurant/${restaurant._id}`);
         return {
           ...restaurant,
           menu: menuRes.data
@@ -381,14 +381,24 @@ export const getActiveOrderForCustomer = async (req, res) => {
     const order = await Order.findOne({
       customerId,
       status: { $in: activeStatuses }
-    })
-    .sort({ createdAt: -1 }); // latest active order
+    }).sort({ createdAt: -1 }); // latest active order
 
     if (!order) {
       return res.status(404).json({ message: 'No active orders found for this customer' });
     }
 
-    // Optional: Fetch driver details from delivery microservice if driver is assigned
+    // 🔁 Fetch restaurant name
+    let restaurantName = 'Unknown';
+    try {
+      const response = await axios.get(
+        `http://auth-service:5000/api/auth/Restaurants/${order.restaurantId}`
+      );
+      restaurantName = response.data?.businessName || 'Unknown';
+    } catch (err) {
+      console.warn(`⚠️ Failed to fetch restaurant ${order.restaurantId}:`, err.message);
+    }
+
+    // 🔁 Fetch driver details (optional)
     let driverInfo = null;
     if (order.driverId) {
       try {
@@ -401,11 +411,52 @@ export const getActiveOrderForCustomer = async (req, res) => {
 
     res.status(200).json({
       message: 'Active order found',
-      order,
-      driver: driverInfo
+      order: {
+        ...order.toObject(),
+        restaurantName,
+      },
+      driver: driverInfo,
     });
   } catch (err) {
     console.error('Error fetching active order:', err.message);
     res.status(500).json({ error: 'Server error while retrieving active order' });
+  }
+};
+
+export const getCompletedOrdersForCustomer = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    const completedOrders = await Order.find({
+      customerId,
+      status: 'delivered',
+    }).sort({ createdAt: -1 });
+
+    // 🔁 Fetch restaurant names for each order
+    const enrichedOrders = await Promise.all(
+      completedOrders.map(async (order) => {
+        let restaurantName = 'Unknown';
+
+        try {
+          const response = await axios.get(
+            `http://auth-service:5000/api/auth/Restaurants/${order.restaurantId}`
+          );
+          console.log('Restaurant response:', response.data);
+          restaurantName = response.data?.businessName || 'Unknown';
+        } catch (err) {
+          console.warn(`⚠️ Failed to fetch restaurant ${order.restaurantId}:`, err.message);
+        }
+
+        return {
+          ...order.toObject(),
+          restaurantName,
+        };
+      })
+    );
+
+    res.json({ orders: enrichedOrders });
+  } catch (err) {
+    console.error('❌ Error fetching completed orders:', err.message);
+    res.status(500).json({ error: 'Server error while retrieving completed orders' });
   }
 };

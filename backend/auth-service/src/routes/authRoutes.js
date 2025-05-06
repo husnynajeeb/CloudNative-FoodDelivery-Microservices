@@ -27,6 +27,6 @@ router.get("/drivers/:id", getDriverById);
 router.get("/Restaurants", AllRestaurants);
 router.get("/Restaurants/:id", getRestaurantById);
 router.put("/update-profile", authMiddleware, updateProfile); // Update profile route')
-router.delete("/delete-profile", authMiddleware, deleteProfile); // Delete profile route
+router.delete("/delete-profile", authMiddleware, deleteProfile);// Delete profile route
 
 export default router;
