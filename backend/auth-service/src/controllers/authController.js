@@ -5,7 +5,7 @@ import Driver from "../models/Driver.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import axios from "axios";
-// Assume you put the above function here
+import { geocodeAddress } from '../../geocode.js'; // Assume you put the above function here
 
 export const registerCustomer = async (req, res) => {
   try {
@@ -99,11 +99,11 @@ export const login = async (req, res) => {
 
   let user = null;
 
-  // Try to login using phone (for customer)
+  // Try to login using phone
   if (phone) {
     user = await Customer.findOne({ phone }) 
         || await Driver.findOne({ phone }) 
-        || await Restaurant.findOne({ phone }); // 👉 added Restaurant check here
+        || await Restaurant.findOne({ phone });
   }
 
   // Try restaurant login using businessName
@@ -111,6 +111,7 @@ export const login = async (req, res) => {
     user = await Restaurant.findOne({ businessName });
   }
 
+  // Try admin login
   if (!user && email) {
     user = await Admin.findOne({ email });
   }
@@ -124,17 +125,57 @@ export const login = async (req, res) => {
     expiresIn: '7d'
   });
 
-  res.json({
-    token,
-    user: {
+  // Prepare user response based on role
+  let userResponse;
+
+  if (user.role === 'restaurant') {
+    userResponse = {
+      id: user._id,
+      businessName: user.businessName,
+      email: user.email ? user.email.trim() : undefined,
+      phone: user.phone,
+      address: user.address,
+      image: user.image,
+      role: user.role,
+      location: user.location
+    };
+  } else if (user.role === 'customer') {
+    userResponse = {
       id: user._id,
       name: user.name,
-      email: user.email,
+      email: user.email ? user.email.trim() : undefined,
       phone: user.phone,
+      address: user.address,
       role: user.role
-    }
+    };
+  } else if (user.role === 'admin') {
+    userResponse = {
+      id: user._id,
+      name: user.name,
+      email: user.email ? user.email.trim() : undefined,
+      role: user.role
+    };
+  } else if (user.role === 'delivery') {
+    userResponse = {
+      id: user._id,
+      name: user.name,
+      email: user.email ? user.email.trim() : undefined,
+      phone: user.phone,
+      role: user.role,
+      vehicleType: user.vehicleType,
+      vehiclePlate: user.vehiclePlate,
+      address: user.address,
+      profilePicture: user.profilePicture,
+      location: user.location
+    };
+  }
+
+  res.json({
+    token,
+    user: userResponse
   });
 };
+
 
 export const getAllRestaurants = async (req, res) => {
   try {
@@ -186,7 +227,7 @@ export const registerDriver = async (req, res) => {
     await driver.save();
 
     // ✅ Send request to delivery service to create DeliveryProfile
-    await axios.post(`http://localhost:5003/api/delivery/driver`, {
+    await axios.post(`http://delivery-service:5004/api/delivery/driver`, {
       authDriverId: driver._id,
        location: location || {
         type: 'Point',

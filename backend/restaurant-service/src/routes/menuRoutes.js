@@ -18,11 +18,12 @@ router.post('/', verifyRestaurant, createMenuItem);
 router.get('/me', verifyRestaurant, getMyMenuItems);
 router.patch('/:id', verifyRestaurant, updateMenuItem);
 router.delete('/:id', verifyRestaurant, deleteMenuItem);
-router.get('/:id', verifyRestaurant, getMenuItem);
 
 // 🌐 Public Route – for customers
 router.get('/restaurant/:restaurantId', getMenuByRestaurantId);
 router.get('/orders', verifyRestaurant, getPendingOrders);
 router.patch('/orders/:id/status', verifyRestaurant, updateOrderStatus);
+
+router.get('/:id', verifyRestaurant, getMenuItem);
 
 export default router;

@@ -16,8 +16,6 @@ import axios from "axios"
 import useAuthStore from "../../store/authStore"
 import { Feather, MaterialIcons, Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
-
-
 const BASE_IP = "192.168.1.3"
 
 export default function RestaurantDashboard() {

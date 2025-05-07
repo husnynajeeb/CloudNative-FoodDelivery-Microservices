@@ -1,7 +1,7 @@
 FROM node:23.11.0-slim
 WORKDIR /app
 COPY package*.json ./
-RUN npm install --global nodemon
+RUN npm install && npm install -g nodemon
 COPY . .
 ENV PORT=5005
 EXPOSE 5005

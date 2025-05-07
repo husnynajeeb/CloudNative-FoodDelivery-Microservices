@@ -36,6 +36,37 @@ services:
       - ./restaurant-service/.env
     depends_on:
       - mongo
+  
+  delivery-service:
+    build: ./delivery-service
+    container_name: delivery-service
+    ports:
+      - "5004:5004"
+    env_file:
+      - ./delivery-service/.env
+    depends_on:
+      - mongo
+  
+  payment-service:
+    build: ./payment
+    container_name: payment
+    ports:
+      - "5003:5003"
+    env_file:
+      - ./payment/.env
+    depends_on:
+      - mongo
 
+  
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    ports:
+      - "5005:5005"
+    env_file:
+      - ./notification-service/.env
+    depends_on:
+      - mongo       
+      
 volumes:
   mongo_data:

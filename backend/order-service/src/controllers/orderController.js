@@ -192,7 +192,7 @@ export const updateOrderStatus = async (req, res) => {
         console.log('📍 Delivery Coordinates:', order.location.coordinates);
 
         const deliveryResponse = await axios.post(
-          'http://localhost:5003/api/delivery/assign',
+          'http://delivery-service:5004/api/delivery/assign',
           {
             orderId: order._id,
             deliveryCoordinates: order.location.coordinates,
@@ -271,7 +271,7 @@ export const getRestaurantOrderById = async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    const RestaurantInfo = await axios.get(`http://localhost:5000/api/auth/Restaurants/${order.restaurantId}`)
+    const RestaurantInfo = await axios.get(`http://auth-service:5000/api/auth/Restaurants/${order.restaurantId}`)
 
     res.status(200).json({
       status: 200,
@@ -292,7 +292,7 @@ export const getAssignedOrder = async (req, res) => {
   console.log(driverId)
   try {
     const response = await axios.get(
-      `http://localhost:5001/api/orders/add`,
+      `http://order-service:5001/api/orders/add`,
       { driverId }
     );
     console.log(response)
@@ -325,14 +325,14 @@ export const getOrderTracking = async (req, res) => {
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
     // 2. Get restaurant location from restaurant microservice
-    const restaurantRes = await axios.get(`http://localhost:5000/api/auth/Restaurants/${order.restaurantId}`);
+    const restaurantRes = await axios.get(`http://auth-service:5000/api/auth/Restaurants/${order.restaurantId}`);
     const restaurant = restaurantRes.data;
 
     // 3. Get driver info from delivery microservice
     let driverLocation = null;
     if (order.driverId) {
       try {
-        const driverRes = await axios.get(`http://localhost:5003/api/delivery/authdriver/${order.driverId}`);
+        const driverRes = await axios.get(`http://delivery-service:5004/api/delivery/authdriver/${order.driverId}`);
         const driver = driverRes.data;
         if (driver.location && driver.location.coordinates) {
           driverLocation = {
@@ -376,7 +376,7 @@ export const getActiveOrderForCustomer = async (req, res) => {
   try {
     const { customerId } = req.params;
 
-    const activeStatuses = ['pending', 'accepted', 'preparing', 'dispatched'];
+    const activeStatuses = ['pending', 'accepted', 'preparing', 'dispatched' , 'out_for_delivery'];
 
     const order = await Order.findOne({
       customerId,
@@ -402,7 +402,7 @@ export const getActiveOrderForCustomer = async (req, res) => {
     let driverInfo = null;
     if (order.driverId) {
       try {
-        const driverRes = await axios.get(`http://localhost:5003/api/delivery/authdriver/${order.driverId}`);
+        const driverRes = await axios.get(`http://delivery-service:5004/api/delivery/authdriver/${order.driverId}`);
         driverInfo = driverRes.data;
       } catch (err) {
         console.warn('Driver info fetch failed:', err.message);

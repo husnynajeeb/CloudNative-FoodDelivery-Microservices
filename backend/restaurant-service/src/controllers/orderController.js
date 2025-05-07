@@ -4,7 +4,7 @@ export const getPendingOrders = async (req, res) => {
   const restaurantId = req.user.id; // From token
 
   try {
-    const response = await axios.get(`http://localhost:5001/api/orders/restaurant/${restaurantId}`);
+    const response = await axios.get(`http://order-service:5001/api/orders/restaurant/${restaurantId}`);
     res.json(response.data);
 } catch (err) {
     console.error('🔴 Failed to fetch orders for restaurant:', {
@@ -24,7 +24,7 @@ export const updateOrderStatus = async (req, res) => {
   const restaurantId = req.user.id;   // from JWT token middleware
 
   try {
-    const orderServiceURL = `http://localhost:5001/api/orders/${id}/states`;
+    const orderServiceURL = `http://order-service:5001/api/orders/${id}/states`;
     const response = await axios.patch(orderServiceURL, {
       status,
       restaurantId  // pass the server-trusted restaurantId to order service

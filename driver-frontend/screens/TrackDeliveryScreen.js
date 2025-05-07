@@ -12,6 +12,7 @@ const ASPECT_RATIO = width / height;
 const LATITUDE_DELTA = 0.0922;
 const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 const GOOGLE_API_KEY = 'AIzaSyAi3F_nxCXmU6kcTP0KFXw4B4AsW-E-8jk'; // make sure this is secured!
+ const BASE_IP = "192.168.1.3"
 
 export default function DriverTrackScreen() {
   const [currentLocation, setCurrentLocation] = useState(null);
@@ -27,6 +28,7 @@ export default function DriverTrackScreen() {
   const [restaurantName, setRestaurantName] = useState("Restaurant");
   const [customerName, setCustomerName] = useState("Customer");
   const [deliveryTime, setDeliveryTime] = useState(null);
+   
 
   const mapRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -72,7 +74,7 @@ export default function DriverTrackScreen() {
 
   const fetchOrderDetails = async () => {
     try {
-      const res = await axios.post('http://192.168.106.55:5001/api/orders/add', {driverId:user?.id},{
+      const res = await axios.post(`http://${BASE_IP}:5001/api/orders/add`, {driverId:user?.id},{
         headers: { Authorization: `Bearer ${token}` },
       });
       console.log(res.data);
@@ -106,7 +108,7 @@ export default function DriverTrackScreen() {
   const updateOrderStatus = async (id, status) => {
     try {
      await axios.patch(
-        `http://192.168.106.55:5001/api/orders/${id}/status`,{status},
+        `http://${BASE_IP}:5001/api/orders/${id}/status`,{status},
          { headers: { Authorization: `Bearer ${token}` } }
       );
        setOrderStatus(status);
@@ -162,7 +164,7 @@ export default function DriverTrackScreen() {
 
             console.log('Sending to backend:', bodyPayload);  // <-- And this
   
-            await fetch(`http://192.168.106.55:5003/api/delivery/${driverId}/location`, {
+            await fetch(`http://${BASE_IP}:5004/api/delivery/${driverId}/location`, {
               method: 'PUT', // or POST depending on your API design
               headers: {
                 'Content-Type': 'application/json',

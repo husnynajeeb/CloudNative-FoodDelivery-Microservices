@@ -20,7 +20,7 @@ import { useNavigation } from "@react-navigation/native";
 import useAuthStore from "../../../store/authStore";
 import { useRouter, useLocalSearchParams } from "expo-router";
 
-const API_URL = "http://192.168.42.110:5003";
+const API_URL = "http://192.168.1.3:5003";
 
 const PaymentScreen = () => {
   const navigation = useNavigation();

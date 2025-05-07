@@ -141,7 +141,7 @@ export const getDriverById = async (req, res) => {
 
     try {
       // Send request to the auth-service to get user details by userId
-      const userResponse = await axios.get(`http://localhost:5000/api/auth/drivers/${userId}`);
+      const userResponse = await axios.get(`http://auth-service:5000/api/auth/drivers/${userId}`);
       userName = userResponse.data.name;
     } catch (err) {
       console.error('Error fetching user data from auth service', err.message);
@@ -175,7 +175,7 @@ export const verifyDriver = async (driverId) => {
 
     try {
       // Send request to the auth-service to get user details by userId
-      const userResponse = await axios.get(`http://localhost:5000/api/auth/drivers/${userId}`);
+      const userResponse = await axios.get(`http://auth-service:5000/api/auth/drivers/${userId}`);
       userName = userResponse.data.name;
     } catch (err) {
       console.error('Error fetching user data from auth service', err.message);
@@ -230,7 +230,7 @@ export const assignDriverToOrder = async (req, res) => {
 
     // Assign driver to order
     const orderUpdateResponse = await axios.put(
-      `http://localhost:5001/api/orders/${orderId}/assign-driver`,
+      `http://order-service:5001/api/orders/${orderId}/assign-driver`,
       { driverId }
     );
 
@@ -268,7 +268,7 @@ export const getAssignedOrder = async (req, res) => {
   console.log(driverId)
   try {
     const response = await axios.get(
-      `http://localhost:5001/api/orders/add`,
+      `http://order-service:5001/api/orders/add`,
       { driverId }
     );
     console.log(response)
