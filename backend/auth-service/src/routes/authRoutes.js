@@ -11,6 +11,7 @@ import {
   getRestaurantById,
   updateProfile,
   deleteProfile,
+ deleteDriverById,
 } from "../controllers/authController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
@@ -28,5 +29,6 @@ router.get("/Restaurants", AllRestaurants);
 router.get("/Restaurants/:id", getRestaurantById);
 router.put("/update-profile", authMiddleware, updateProfile); // Update profile route')
 router.delete("/delete-profile", authMiddleware, deleteProfile);// Delete profile route
+router.delete("/delete-driver", deleteDriverById);
 
 export default router;

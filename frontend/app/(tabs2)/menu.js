@@ -1,12 +1,11 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import useAuthStore from '../../store/authStore';
 import { useRouter } from 'expo-router';
 
 export default function RestaurantDashboard() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
-  console.log(user);
 
   useEffect(() => {
     if (!user) {
@@ -26,10 +25,9 @@ export default function RestaurantDashboard() {
   const goToViewMenu = () => router.push('/Screen/Menu/MenuListForm');
   const goToAddMenu = () => router.push('/Screen/Menu/AddMenuForm');
   const goToUpdateProfile = () => router.push('/Screen/Restaurant/UpdateProfile');
-  const goToManageOrders = () => router.push('/dashboard/restaurant');
+  const goToManageOrders = () => router.push('/Screen/Menu/ManageOrder');
 
   if (!user) {
-    console.log('User is null or undefined');
     return (
       <View style={styles.container}>
         <Text style={styles.loadingText}>Loading restaurant details...</Text>
@@ -44,7 +42,7 @@ export default function RestaurantDashboard() {
   };
 
   const isProfileIncomplete =
-    !user.businessName || !user.address || !user.address?.street || !user.address?.city || !user.email || !user.phone;
+    !user.businessName || !user.address?.street || !user.address?.city || !user.email || !user.phone;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -53,78 +51,73 @@ export default function RestaurantDashboard() {
         <Text style={styles.headerSubtitle}>Your Culinary Dashboard</Text>
       </View>
 
-      <View style={styles.card}>
-        {user.image ? (
-          <Image source={{ uri: user.image }} style={styles.image} />
-        ) : (
-          <View style={styles.placeholderImage}>
-            <Text style={styles.placeholderText}>Logo</Text>
-          </View>
-        )}
+      <Image
+        source={{
+          uri: user.image || 'https://images.pexels.com/photos/958545/pexels-photo-958545.jpeg',
+        }}
+        style={styles.fullImage}
+        resizeMode="cover"
+      />
 
-        <Text style={styles.welcomeText}>Welcome, Chef! 🍷</Text>
+      <Text style={styles.welcomeText}>Welcome, Chef! 🍷</Text>
 
-        {isProfileIncomplete && (
-          <View style={styles.warningContainer}>
-            <Text style={styles.warningText}>
-              Your profile is incomplete. Please update your restaurant details.
-            </Text>
-            <TouchableOpacity style={styles.updateProfileButton} onPress={goToUpdateProfile}>
-              <Text style={styles.buttonText}>Update Profile</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <View style={styles.detailsContainer}>
-          <Text style={styles.detail}>
-            <Text style={styles.detailLabel}>Business Name: </Text>
-            {user.businessName || 'N/A'}
+      {isProfileIncomplete && (
+        <View style={styles.warningContainer}>
+          <Text style={styles.warningText}>
+            Your profile is incomplete. Please update your restaurant details.
           </Text>
-          <Text style={styles.detail}>
-            <Text style={styles.detailLabel}>Phone: </Text>
-            {user.phone || 'N/A'}
-          </Text>
-          <Text style={styles.detail}>
-            <Text style={styles.detailLabel}>Email: </Text>
-            {user.email || 'N/A'}
-          </Text>
-          <Text style={styles.detail}>
-            <Text style={styles.detailLabel}>Address: </Text>
-            {formatAddress(user.address)}
-          </Text>
-          {user.location?.coordinates && (
-            <Text style={styles.detail}>
-              <Text style={styles.detailLabel}>Location: </Text>
-              {`Lat: ${user.location.coordinates[1]}, Lng: ${user.location.coordinates[0]}`}
-            </Text>
-          )}
+          <TouchableOpacity style={styles.updateProfileButton} onPress={goToUpdateProfile}>
+            <Text style={styles.buttonText}>Update Profile</Text>
+          </TouchableOpacity>
         </View>
+      )}
 
-        <TouchableOpacity style={styles.viewMenuButton} onPress={goToViewMenu}>
-          <Text style={styles.buttonText}>View Menu</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.addMenuButton} onPress={goToAddMenu}>
-          <Text style={styles.buttonText}>Add Menu</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.manageOrderButton} onPress={goToManageOrders}>
-          <Text style={styles.buttonText}>Manage Orders</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.buttonText}>Sign Out</Text>
-        </TouchableOpacity>
+      <View style={styles.detailsContainer}>
+        <Text style={styles.detail}>
+          <Text style={styles.detailLabel}>Business Name: </Text>
+          {user.businessName || 'N/A'}
+        </Text>
+        <Text style={styles.detail}>
+          <Text style={styles.detailLabel}>Phone: </Text>
+          {user.phone || 'N/A'}
+        </Text>
+        <Text style={styles.detail}>
+          <Text style={styles.detailLabel}>Email: </Text>
+          {user.email || 'N/A'}
+        </Text>
+        <Text style={styles.detail}>
+          <Text style={styles.detailLabel}>Address: </Text>
+          {formatAddress(user.address)}
+        </Text>
       </View>
+
+      <TouchableOpacity style={styles.viewMenuButton} onPress={goToViewMenu}>
+        <Text style={styles.buttonText}>View Menu</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.addMenuButton} onPress={goToAddMenu}>
+        <Text style={styles.buttonText}>Add Menu</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.manageOrderButton} onPress={goToManageOrders}>
+        <Text style={styles.buttonText}>Manage Orders</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <Text style={styles.buttonText}>Sign Out</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
+
+const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     backgroundColor: '#fff9e6',
     paddingVertical: 24,
+    alignItems: 'center',
   },
   header: {
     alignItems: 'center',
@@ -139,6 +132,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
     marginBottom: 24,
+    width: '100%',
   },
   headerTitle: {
     fontSize: 30,
@@ -155,50 +149,15 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    marginHorizontal: 16,
-    padding: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  image: {
-    width: 128,
-    height: 128,
-    borderRadius: 64,
-    marginBottom: 16,
-    borderWidth: 4,
-    borderColor: '#f4c430',
-    backgroundColor: '#f7f8fc',
-  },
-  placeholderImage: {
-    width: 128,
-    height: 128,
-    borderRadius: 64,
-    backgroundColor: '#f7f8fc',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 4,
-    borderColor: '#f4c430',
-  },
-  placeholderText: {
-    color: '#2d3436',
-    fontSize: 18,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+  fullImage: {
+    width: width,
+    height: 220,
   },
   welcomeText: {
     fontSize: 26,
     fontWeight: '700',
     color: '#2d3436',
-    marginBottom: 16,
+    marginVertical: 16,
     textAlign: 'center',
     letterSpacing: 0.5,
   },
@@ -207,7 +166,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    width: '100%',
+    width: '90%',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#f6e05e',
@@ -235,7 +194,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fffcf4',
     borderRadius: 16,
     padding: 20,
-    width: '100%',
+    width: '90%',
     marginBottom: 24,
     borderWidth: 1,
     borderColor: '#f9e1a8',

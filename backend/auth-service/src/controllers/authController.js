@@ -201,13 +201,19 @@ export const getRestaurantById = async (req, res) => {
 
 
 
-
 export const registerDriver = async (req, res) => {
   try {
-    const { name, phone, email, password, vehicleType, vehiclePlate, address, profilePicture , location } = req.body;
+    const { name, phone, email, password, vehicleType, vehiclePlate, address, profilePicture } = req.body;
 
     const exists = await Driver.findOne({ phone });
     if (exists) return res.status(409).json({ message: "Driver already exists" });
+
+    const fullAddress = `${address.street}, ${address.city}, Sri Lanka`;
+
+    const coordinates = await geocodeAddress(fullAddress);
+    if (!coordinates) {
+      return res.status(400).json({ message: 'Unable to geocode the provided address' });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -218,20 +224,26 @@ export const registerDriver = async (req, res) => {
       password: hashedPassword,
       vehicleType,
       vehiclePlate,
-      address,
+      address: {
+        ...address,
+        country: 'Sri Lanka',
+      },
       profilePicture,
       role: "delivery",
-      location
+      location: {
+        type: 'Point',
+        coordinates, // [lng, lat]
+      }
     });
 
     await driver.save();
 
-    // ✅ Send request to delivery service to create DeliveryProfile
     await axios.post(`http://delivery-service:5004/api/delivery/driver`, {
       authDriverId: driver._id,
-       location: location || {
+      phone: driver.phone,
+      location: {
         type: 'Point',
-        coordinates: [0, 0], // fallback default
+        coordinates, // Ensure consistency with Driver location
       }
     });
 
@@ -318,3 +330,23 @@ export const deleteProfile = async (req, res) => {
   }
 };
 
+
+export const deleteDriverById = async (req, res) => {
+  try {
+    const { driverId } = req.body;  // Driver ID in request body
+
+    // Find the driver and delete it from the Driver collection
+    const deletedDriver = await Driver.findByIdAndDelete(driverId);
+
+    // If the driver was found and deleted, return success message
+    if (deletedDriver) {
+      return res.status(200).json({ message: "Driver account deleted successfully" });
+    }
+
+    // If no matching driver was found, return a "Driver not found" message
+    return res.status(404).json({ message: "Driver not found" });
+  } catch (err) {
+    console.error("Error deleting driver:", err.message);
+    return res.status(500).json({ message: "Server error" });
+  }
+};

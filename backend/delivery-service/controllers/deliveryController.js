@@ -4,7 +4,7 @@ import axios from 'axios';
 import mongoose from "mongoose";
 
 export const createDriver = async (req, res) => {
-  const { authDriverId, location } = req.body; // ⬅️ include location here!
+  const { authDriverId, location , phone} = req.body; // ⬅️ include location here!
 
   try {
     // Ensure the location is a GeoJSON Point
@@ -15,6 +15,7 @@ export const createDriver = async (req, res) => {
 
     const deliveryProfile = new DeliveryProfile({
       authDriverId,
+      phone:phone,
       status: "available",
       location: driverLocation,
       rating: 5.0,
@@ -248,6 +249,7 @@ export const assignDriverToOrder = async (req, res) => {
       message: 'Driver assigned successfully',
       driver: {
         id: driver._id,
+        phone: driver.phone,
         authDriverId: driver.authDriverId,
       },
       order: updatedOrder,

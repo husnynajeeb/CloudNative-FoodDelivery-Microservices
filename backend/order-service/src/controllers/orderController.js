@@ -171,7 +171,7 @@ export const updateOrderStatus = async (req, res) => {
   }
 
   try {
-    // 🟢 Update order status
+    // 🟢 Update order status in DB
     const order = await Order.findOneAndUpdate(
       { _id: id, restaurantId },
       { status },
@@ -179,7 +179,6 @@ export const updateOrderStatus = async (req, res) => {
     );
 
     if (!order) {
-      console.warn('⚠️ Order not found or not authorized');
       return res.status(404).json({ message: 'Order not found or not authorized' });
     }
 
@@ -199,18 +198,34 @@ export const updateOrderStatus = async (req, res) => {
           },
           {
             headers: {
-              'internal-call': 'true'  // 🔥 add this
-            }
+              'internal-call': 'true',
+            },
           }
         );
 
         console.log('📦 Delivery Service Response:', deliveryResponse.data);
 
-        // ✅ Assign driver to order if found
         if (deliveryResponse.data.driver?.authDriverId) {
           order.driverId = deliveryResponse.data.driver.authDriverId;
           await order.save();
           console.log('✅ Driver assigned:', order.driverId);
+
+          const driverPhone = deliveryResponse.data.driver.phone;
+          if (driverPhone) {
+            try {
+              // 📲 Send SMS via notification service (which uses TextBee)
+              await axios.post('http://notification-service:5005/notification/send-sms', {
+                phoneNumber: driverPhone,
+                message: `🚚 You have been assigned a new order (ID: ${order._id}). Please check your dashboard.`,
+              });
+              console.log('📩 SMS sent to driver via notification service:', driverPhone);
+            } catch (smsErr) {
+              console.error('❌ Failed to send SMS:', smsErr.message);
+            }
+          } else {
+            console.warn('⚠️ No phone number provided for driver');
+          }
+
         } else {
           console.warn('⚠️ No driver assigned in response');
         }
@@ -227,8 +242,6 @@ export const updateOrderStatus = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
-
 
 // Assign driver to order
 export const assignDriver = async (req, res) => {
