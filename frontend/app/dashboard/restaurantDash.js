@@ -26,7 +26,7 @@ export default function RestaurantDashboard() {
   const goToViewMenu = () => router.push('/Screen/Menu/MenuListForm');
   const goToAddMenu = () => router.push('/Screen/Menu/AddMenuForm');
   const goToUpdateProfile = () => router.push('/Screen/Restaurant/UpdateProfile');
-  const goToManageOrders = () => router.push('/dashboard/restaurant');
+  const goToManageOrders = () => router.push('/Screen/Menu/ManageOrder');
 
   if (!user) {
     console.log('User is null or undefined');

@@ -24,6 +24,8 @@ export default function RegisterDelivery() {
   const [password, setPassword] = useState("")
   const [vehicleType, setVehicleType] = useState("")
   const [vehiclePlate, setVehiclePlate] = useState("")
+  const [street, setStreet] = useState("")
+  const [city, setCity] = useState("")
   const [loading, setLoading] = useState(false)
 
   const handleRegister = async () => {
@@ -39,14 +41,17 @@ export default function RegisterDelivery() {
         phone,
         email,
         password,
-        role: "delivery", // Required by your backend
+        role: "delivery",
         vehicleType,
         vehiclePlate,
-        address: "", // optional for now
-        profilePicture: "", // optional default
+        address: {
+          street,
+          city,
+        },
+        profilePicture: "",
         location: {
           type: "Point",
-          coordinates: [0, 0], // default coordinates
+          coordinates: [0, 0],
         },
       })
 
@@ -55,8 +60,8 @@ export default function RegisterDelivery() {
         navigation.replace("LoginDelivery")
       }
     } catch (err) {
-      console.log("Register Error:", err) // Log full error
-      console.log("Error response:", err.response?.data) // Log backend response if available
+      console.log("Register Error:", err)
+      console.log("Error response:", err.response?.data)
       Alert.alert("Registration failed", err.response?.data?.message || err.message)
     } finally {
       setLoading(false)
@@ -121,6 +126,28 @@ export default function RegisterDelivery() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            style={styles.input}
+            placeholderTextColor="#999"
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Street Address</Text>
+          <TextInput
+            placeholder="123 Main St"
+            value={street}
+            onChangeText={setStreet}
+            style={styles.input}
+            placeholderTextColor="#999"
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>City</Text>
+          <TextInput
+            placeholder="Colombo, Kandy, etc."
+            value={city}
+            onChangeText={setCity}
             style={styles.input}
             placeholderTextColor="#999"
           />

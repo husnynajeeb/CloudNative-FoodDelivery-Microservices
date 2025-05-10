@@ -1,39 +1,37 @@
-// controllers/twilioController.js
-const twilio = require("twilio");
 const dotenv = require("dotenv");
 dotenv.config();
 
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const twilioPhoneNumber = process.env.TWILIO_PHONE;
+const axios = require('axios');
 
-const client = twilio(accountSid, authToken);
 
-exports.sendMessage = async (req, res) => {
-  const { to, message } = req.body;
+const TEXTBEE_API_KEY = process.env.TEXTBEE_API_KEY;
+const TEXTBEE_DEVICE_ID = process.env.TEXTBEE_DEVICE_ID;
 
-  // Convert Sri Lankan local number starting with '0' to international format
-  if (to.startsWith("0")) {
-    to = "+94" + to.slice(1); // Replace starting 0 with +94
+exports.sendSms = async (req, res) => {
+  const { phoneNumber, message } = req.body;
+
+  if (!phoneNumber || !message) {
+    return res.status(400).json({ error: 'phoneNumber and message are required' });
   }
 
   try {
-    const result = await client.messages.create({
-      body: message,
-      from: twilioPhoneNumber,
-      to: to,
-    });
+    const response = await axios.post(
+      `https://api.textbee.dev/api/v1/gateway/devices/${TEXTBEE_DEVICE_ID}/send-sms`,
+      {
+        recipients: [phoneNumber],
+        message,
+      },
+      {
+        headers: {
+          'x-api-key': TEXTBEE_API_KEY,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-    res.status(200).json({
-      success: true,
-      message: "Message sent successfully!",
-      sid: result.sid,
-    });
+    res.status(200).json({ success: true, data: response.data });
   } catch (error) {
-    console.error("Error sending SMS:", error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    console.error('Error sending SMS:', error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 };

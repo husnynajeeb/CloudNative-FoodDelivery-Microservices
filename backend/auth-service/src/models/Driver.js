@@ -8,20 +8,18 @@ const driverSchema = new mongoose.Schema(
     password: { type: String, required: true },
     role: { type: String, default: 'delivery' },
     profilePicture: { type: String, default: "" },
-    address: { type: String, default: "" },
+    address: {
+      street: { type: String },
+      city: { type: String },
+      country: { type: String, default: "Sri Lanka" },
+    },
     vehicleType: { type: String, default: "" },
     vehiclePlate: { type: String, default: "" },
 
-    // ✅ GeoJSON location field with default coordinates
     location: {
-      type: {
-        type: String,
-        enum: ['Point'],
-        default: 'Point',
-      },
+      type: { type: String, default: 'Point' },
       coordinates: {
-        type: [Number], // [longitude, latitude]
-        required: true,
+        type: [Number],
         default: [0, 0],
       },
     },
