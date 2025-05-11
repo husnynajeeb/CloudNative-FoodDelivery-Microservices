@@ -15,12 +15,12 @@ const useOrderStore = create((set) => ({
       console.log('Fetching active and completed orders...');
 
       const [activeRes, completedRes] = await Promise.all([
-        axios.get(`/orders/customer/${user.id}/active`),
+        axios.get(`/orders/customer/${user.id}/active/all`),
         axios.get(`/orders/customer/${user.id}/completed`)
       ]);
 
       set({
-        activeOrder: activeRes.data.order || [],
+        activeOrder: activeRes.data.orders || [],
         completedOrders: completedRes.data.orders || []  // ✅ correct the nested property
       });
 

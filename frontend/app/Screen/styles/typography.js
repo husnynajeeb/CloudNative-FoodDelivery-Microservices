@@ -81,3 +81,5 @@ export const typography = StyleSheet.create({
     lineHeight: 19,
   },
 });
+
+export default {};

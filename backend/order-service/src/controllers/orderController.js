@@ -473,3 +473,46 @@ export const getCompletedOrdersForCustomer = async (req, res) => {
     res.status(500).json({ error: 'Server error while retrieving completed orders' });
   }
 };
+
+// ✅ Get all active orders for a specific customer
+export const getActiveOrdersForCustomer = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    const activeStatuses = ['pending', 'accepted', 'preparing', 'dispatched', 'out_for_delivery'];
+
+    const activeOrders = await Order.find({
+      customerId,
+      status: { $in: activeStatuses }
+    }).sort({ createdAt: -1 });
+
+    if (!activeOrders.length) {
+      return res.status(404).json({ message: 'No active orders found for this customer' });
+    }
+
+    // 🔁 Add restaurant names to each active order
+    const enrichedOrders = await Promise.all(
+      activeOrders.map(async (order) => {
+        let restaurantName = 'Unknown';
+        try {
+          const response = await axios.get(
+            `http://auth-service:5000/api/auth/Restaurants/${order.restaurantId}`
+          );
+          restaurantName = response.data?.businessName || 'Unknown';
+        } catch (err) {
+          console.warn(`⚠️ Failed to fetch restaurant ${order.restaurantId}:`, err.message);
+        }
+
+        return {
+          ...order.toObject(),
+          restaurantName,
+        };
+      })
+    );
+
+    res.status(200).json({ orders: enrichedOrders });
+  } catch (err) {
+    console.error('❌ Error fetching active orders:', err.message);
+    res.status(500).json({ error: 'Server error while retrieving active orders' });
+  }
+};

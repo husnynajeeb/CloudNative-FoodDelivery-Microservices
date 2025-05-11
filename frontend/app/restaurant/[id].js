@@ -1,17 +1,19 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, View, Image, TouchableOpacity } from 'react-native';
+import { useEffect, useState, useRef } from 'react';
+import { SafeAreaView, ScrollView, StyleSheet, Text, View, Image, TouchableOpacity, TextInput } from 'react-native';
 import axios from '../../lib/axiosRestaurant';
 import MenuItemCard from '../ui/MenuItemCard';
 import StickyMiniHeader from '../ui/StickyMiniHeader';
-import useCartStore from '../../store/cartStore'; // ✅ Import cart store
+import useCartStore from '../../store/cartStore';
 
 export default function RestaurantScreen() {
   const { id, name } = useLocalSearchParams();
   const router = useRouter();
   const [restaurant, setRestaurant] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const searchInputRef = useRef(null);
 
-  const { cartItems, addToCart } = useCartStore(); // ✅ Fix import properly
+  const { cartItems, addToCart } = useCartStore();
 
   useEffect(() => {
     if (id) {
@@ -36,11 +38,29 @@ export default function RestaurantScreen() {
     });
   };
 
+  const handleSearchFocus = () => {
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  };
+
+  const filteredMenu = restaurant?.menu?.filter(item =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
   if (!restaurant) return <Text style={{ textAlign: 'center', marginTop: 50 }}>Loading...</Text>;
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StickyMiniHeader title={restaurant.businessName} />
+      <StickyMiniHeader title={restaurant.businessName} onSearchPress={handleSearchFocus} />
+
+      <TextInput
+        ref={searchInputRef}
+        value={searchTerm}
+        onChangeText={setSearchTerm}
+        placeholder="Search food..."
+        style={styles.searchInput}
+      />
 
       <ScrollView>
         {/* Header Section */}
@@ -59,17 +79,16 @@ export default function RestaurantScreen() {
         {/* Menu Section */}
         <View style={styles.menuSection}>
           <Text style={styles.sectionTitle}>Picked for you</Text>
-          {restaurant.menu.map((item) => (
+          {filteredMenu.map((item) => (
             <MenuItemCard 
               key={item._id} 
               item={item} 
-              onAdd={() => handleAddItem(item)}  // ✅ Pass handleAddItem to MenuItemCard
+              onAdd={() => handleAddItem(item)}
             />
           ))}
         </View>
       </ScrollView>
 
-      {/* Floating Cart Button */}
       {cartItems.length > 0 && (
         <TouchableOpacity 
           style={styles.floatingCartButton}
@@ -86,6 +105,16 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  searchInput: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 12,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 16,
   },
   topSection: {
     marginBottom: 12,
@@ -144,5 +173,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  },  
+  },
 });

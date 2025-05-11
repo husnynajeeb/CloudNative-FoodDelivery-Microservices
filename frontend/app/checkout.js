@@ -47,7 +47,7 @@ export default function CheckoutPage() {
           price: item.price,
           quantity: item.quantity,
         })),
-        totalAmount: subtotal,
+        totalAmount: total,
         deliveryAddress: {
           street,
           city,

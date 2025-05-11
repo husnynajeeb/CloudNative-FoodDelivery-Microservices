@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { X, Search } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 
-export default function StickyMiniHeader({ title }) {
+export default function StickyMiniHeader({ title, onSearchPress }) {
   const router = useRouter();
 
   return (
@@ -11,7 +11,7 @@ export default function StickyMiniHeader({ title }) {
         <X size={28} color="#111" />
       </TouchableOpacity>
       <Text style={styles.stickyTitle} numberOfLines={1}>{title}</Text>
-      <TouchableOpacity>
+      <TouchableOpacity onPress={onSearchPress}>
         <Search size={24} color="#111" />
       </TouchableOpacity>
     </View>

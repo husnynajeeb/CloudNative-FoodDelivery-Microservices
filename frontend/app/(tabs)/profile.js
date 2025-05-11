@@ -81,7 +81,6 @@ import {
   
           {/* Danger Zone */}
           <View style={styles.dangerZone}>
-            <Text style={styles.dangerTitle}>Danger Zone</Text>
             <TouchableOpacity
               style={styles.deleteButton}
               onPress={handleDeleteAccount}
@@ -175,12 +174,6 @@ import {
       borderColor: "#f87171",
       borderRadius: 12,
       backgroundColor: "#fef2f2",
-    },
-    dangerTitle: {
-      fontSize: 16,
-      fontWeight: "700",
-      color: "#b91c1c",
-      marginBottom: 12,
     },
     deleteButton: {
       backgroundColor: "#ef4444",

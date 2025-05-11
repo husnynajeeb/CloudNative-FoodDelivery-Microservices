@@ -50,3 +50,5 @@ export const colors = {
   black: '#000000',
   transparent: 'transparent',
 };
+
+export default {};

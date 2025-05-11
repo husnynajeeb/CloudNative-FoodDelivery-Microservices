@@ -14,7 +14,7 @@ export default function CustomerDashboard() {
 
   const [activeOrder, setActiveOrder] = useState(null)
   const [loading, setLoading] = useState(true)
-const BASE_IP = "192.168.1.3"
+const BASE_IP = "192.168.8.200"
 
   useEffect(() => {
     const fetchActiveOrder = async () => {
